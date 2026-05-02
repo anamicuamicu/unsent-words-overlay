@@ -2,127 +2,96 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <title>UnsentWords</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{
-  width:100%;height:100%;
-  overflow:hidden;
-  background:#03010c;
-  position:fixed;
-  top:0;left:0;right:0;bottom:0;
-  -webkit-text-size-adjust:100%;
-  text-size-adjust:100%;
-}
-canvas{
-  image-rendering:crisp-edges;
-  image-rendering:-webkit-optimize-contrast;
-}
-/* Force the app to always fill the screen correctly */
-#root{
-  width:100vw;
-  height:100vh;
-  height:100dvh;
-  overflow:hidden;
-  position:fixed;
-  inset:0;
-}
+html,body{width:100%;height:100%;overflow:hidden;background:#03010c;position:fixed;top:0;left:0;right:0;bottom:0}
+#root{width:100vw;height:100vh;height:100dvh;overflow:hidden;position:fixed;inset:0}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
-const BRIDGE_URL = "wss://unsent-words-bridge.onrender.com";
-const FALLBACK_POOL = [
-  "You always were. The ones who couldn't see it simply weren't ready for you.",
-  "I never stopped thinking about you. Not even for a day.",
-  "I didn't want to leave. I just didn't know how to stay.",
-  "You didn't need to say it. I always knew.",
-  "So am I. For everything I left unsaid too.",
-  "More than I ever found the words for, and that is the truth.",
-  "You were the best thing I didn't know how to hold onto.",
-  "I heard you. I hear you still. Every single word.",
-  "You were never too much. You were just too much for the wrong people.",
-  "I would choose you again. In every version of this.",
-  "You were loved in ways I never knew how to show.",
-  "Letting go was the hardest thing I ever did. It didn't mean I stopped.",
-  "You were enough. You have always been enough.",
-  "I thought about reaching out a thousand times. I was afraid too.",
-  "The silence wasn't emptiness. It was everything I didn't know how to say.",
-  "You deserved better. I know that now.",
-  "I carried you with me longer than you know.",
-  "Some goodbyes don't mean forever. This one never did.",
-  "You were seen. Even when I made you feel invisible.",
-  "I'm proud of you. I should have said it when it mattered.",
+const {useState,useEffect,useRef,useCallback}=React;
+const BRIDGE_URL="wss://unsent-words-bridge.onrender.com";
+const LIVE_TITLES=["what would you ask if they could answer?","what have you always wanted to ask?"];
+const LIVE_SUBTITLES=["type any heart emoji in the chat","type heart emoji + your question"];
+const NUDGE_MSGS=["send a gift to skip the line","bigger gift, bigger moment","gift to be featured first","let the universe carry your words"];
+const FALLBACK=[
+  "You always were. The ones who made you doubt that were never ready for you.",
+  "I am right here, in the quiet moments when you slow down and feel something you cannot name.",
+  "Every single day. More than I ever found the right words to say.",
+  "I was scared of how much I needed you. That was my failure, not yours.",
+  "You never needed to. I already knew everything you meant to say.",
+  "More than you will ever fully know. I just did not always know how to show it.",
+  "I am at peace. I just wish I had told you more when I had the chance.",
+  "I know. I miss you too, in ways that do not go away.",
+  "I thought about reaching out so many times. I was afraid of what it meant.",
+  "You were always enough. The people who made you feel otherwise were not enough for you.",
+  "So am I. For everything I left unsaid and every moment I did not show up fully.",
+  "I did not want to leave. I just did not know how to stay.",
+  "Yes. I chose you, and if I could go back I would choose you again.",
+  "I am proud of you. I should have said that so much more while I could.",
+  "I heard you then. I hear you now. Every word.",
+  "You were seen, even when I made you feel invisible. That is something I carry.",
+  "Letting go was the hardest thing I ever did. It did not mean I stopped loving you.",
+  "I still catch myself about to reach out. Some things do not change.",
+  "You were the best thing I did not know how to hold on to.",
+  "I loved you in ways I never found the language for."
 ];
-const NUDGE_MSGS = [
-  "send a gift to skip the line",
-  "bigger gift, bigger moment",
-  "gift to be featured first",
-  "let the universe carry your words",
-];
+const HEARTS=[0x2665,0x2764,0x1F499,0x1F49A,0x1F49B,0x1F49C,0x1F49D,0x1F49E,0x1F49F,0x1F90D,0x1F90E,0x1F9E1];
 
-// Alternating live titles (shown in idle hint area)
-const LIVE_TITLES = [
-  "what would you ask if they could answer?",
-  "what have you always wanted to ask?",
-];
-
-const LIVE_SUBTITLES = [
-  "type ♥ in the chat",
-  "type ♥ + your question",
-];
 function wait(ms){return new Promise(r=>setTimeout(r,ms));}
-function getFallbackReply(recent){
-  const available=FALLBACK_POOL.filter(r=>!recent.includes(r));
-  const pool=available.length>0?available:[...FALLBACK_POOL];
-  return pool[Math.floor(Math.random()*pool.length)];
+function hasHeart(t){
+  if(!t)return false;
+  if(t.indexOf('\u2665')!==-1||t.indexOf('\u2764')!==-1)return true;
+  for(let i=0;i<t.length;i++){const c=t.codePointAt(i);if(HEARTS.indexOf(c)!==-1)return true;}
+  return false;
 }
-function fixTypos(text){
-  // Fix common typos and clean up the message before sending to AI
-  if(!text||typeof text!=="string") return text;
+function getFallback(recent){
+  const pool=FALLBACK.filter(r=>!recent.includes(r));
+  const p=pool.length>0?pool:FALLBACK;
+  return p[Math.floor(Math.random()*p.length)];
+}
+function genReply(msg){
+  const sys="You are responding as the specific person or presence being spoken to. Someone is asking them a question they never got to ask, or saying something they never got to say. Read their exact words and respond DIRECTLY and SPECIFICALLY to what they said. If they ask where you are, tell them you are close. If they ask if you miss them, say yes warmly. If they ask why you left, be honest and gentle. If they say sorry, forgive them fully. Speak as if you genuinely love this person and want them to feel held and not alone. 1 to 2 short sentences max, 22 words max. Never vague. No: closure journey universe cosmos heal path soul realm. No questions back. Return only the reply, no quotes, no labels.";
   return fetch("https://api.anthropic.com/v1/messages",{
     method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({
-      model:"claude-sonnet-4-20250514",
-      max_tokens:60,
-      system:"Fix any spelling mistakes or typos in the message. Keep the exact same words, meaning and tone. Return only the corrected message. No explanations, no quotes.",
-      messages:[{role:"user",content:text}]
-    })
-  }).then(r=>r.json()).then(d=>{
-    if(d.content&&d.content[0]&&d.content[0].text) return d.content[0].text.trim();
-    return text;
-  }).catch(()=>text);
-}
-
-function generateReply(message){
-  const sys="You are the voice of the person, presence, or feeling being spoken to. Someone is asking a question or sending words they never got to say — to a lost love, a parent, a friend, someone gone, or a part of themselves. Your job is to give them the answer their heart always needed to hear. Read what they wrote carefully. Respond directly and specifically to their exact words. Speak as if you genuinely love this person and want them to feel seen, held, and not alone. Be honest, warm, and human. Not clinical. Not generic. Not poetic for the sake of it. If they ask if they were enough — tell them yes, and make them feel it. If they say sorry — forgive them with warmth. If they say they miss someone — acknowledge the ache and give them comfort. If they ask why someone left — answer with gentleness and truth. Write 1 to 2 short sentences. Maximum 25 words. Do not use: closure, journey, universe, cosmos, heal, path, soul, realm. Do not ask a question back. Return only the reply. No quotes, no labels, no extra text. Examples of the tone to hit: Q: was I enough? A: You were always enough. The problem was never you. Q: why did you leave? A: I was scared of how much I needed you. That was my failure, not yours. Q: do you miss me? A: Every single day. More than I ever knew how to show you. Q: I never got to say goodbye. A: You did not need to. I already knew everything you meant to say. Q: did you ever love me? A: More than you will ever fully know. I just did not know how to show it.";
-  return fetch("https://api.anthropic.com/v1/messages",{
-    method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:80,system:sys,messages:[{role:"user",content:message}]})
+    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:80,system:sys,messages:[{role:"user",content:msg}]})
   }).then(r=>r.json()).then(d=>{
     if(d.content&&d.content[0]&&d.content[0].text)return d.content[0].text.trim().replace(/^["']|["']$/g,"");
     throw new Error("empty");
   });
 }
+function fixTypos(text){
+  return fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:60,
+      system:"Fix spelling mistakes and typos only. Keep the exact meaning, tone, and words. Return only the corrected text, no explanation.",
+      messages:[{role:"user",content:text}]})
+  }).then(r=>r.json()).then(d=>{
+    if(d.content&&d.content[0]&&d.content[0].text)return d.content[0].text.trim();
+    return text;
+  }).catch(()=>text);
+}
+
 function useBgCanvas(ref){
   useEffect(()=>{
     const c=ref.current;if(!c)return;
     const ctx=c.getContext("2d");
-    let W=0,H=0,stars=[],nebulas=[],comets=[],raf,cometTimer;
+    let W=0,H=0,stars=[],nebulas=[],comets=[],raf,ct;
+    function dpr(){return window.devicePixelRatio||1;}
     function resize(){
-      const dpr=window.devicePixelRatio||1;
       W=document.documentElement.clientWidth||window.innerWidth;
       H=document.documentElement.clientHeight||window.innerHeight;
-      c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);
+      const d=dpr();
+      c.width=Math.round(W*d);c.height=Math.round(H*d);
       c.style.width=W+"px";c.style.height=H+"px";
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.scale(dpr,dpr);
+      ctx.setTransform(1,0,0,1,0,0);ctx.scale(d,d);
       stars=[];nebulas=[];
       const n=Math.floor(W*H/1800);
       for(let i=0;i<n;i++){
@@ -139,48 +108,55 @@ function useBgCanvas(ref){
         phase:Math.random()*Math.PI*2,ps:Math.random()*0.003+0.001}));
     }
     function spawnComet(){
-      const h=Math.random()<0.5?315+Math.random()*25:255+Math.random()*35;
-      comets.push({x:Math.random()*W*0.75,y:Math.random()*H*0.45,len:90+Math.random()*130,spd:3+Math.random()*4,alpha:0.6+Math.random()*0.2,angle:Math.PI/5+(Math.random()-0.5)*0.3,h});
+      comets.push({x:Math.random()*W*0.75,y:Math.random()*H*0.45,
+        len:90+Math.random()*130,spd:3+Math.random()*4,alpha:0.6+Math.random()*0.2,
+        angle:Math.PI/5+(Math.random()-0.5)*0.3,h:Math.random()<0.5?315+Math.random()*25:255+Math.random()*35});
     }
     function draw(){
       ctx.clearRect(0,0,W,H);
       nebulas.forEach(nb=>{
         nb.phase+=nb.ps;const a=nb.baseA*(0.7+0.3*Math.sin(nb.phase));
         const g=ctx.createRadialGradient(nb.x,nb.y,0,nb.x,nb.y,nb.r);
-        g.addColorStop(0,`hsla(${nb.h},55%,50%,${a})`);g.addColorStop(0.5,`hsla(${nb.h+18},45%,36%,${a*0.35})`);g.addColorStop(1,"rgba(3,1,12,0)");
+        g.addColorStop(0,`hsla(${nb.h},55%,50%,${a})`);
+        g.addColorStop(0.5,`hsla(${nb.h+18},45%,36%,${a*0.35})`);
+        g.addColorStop(1,"rgba(3,1,12,0)");
         ctx.beginPath();ctx.arc(nb.x,nb.y,nb.r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
       });
       stars.forEach(st=>{
         st.phase+=st.ps;const sa=st.alpha*(0.45+0.55*Math.sin(st.phase));
-        ctx.beginPath();ctx.arc(st.x,st.y,st.r,0,Math.PI*2);ctx.fillStyle=`hsla(${st.h},${st.s}%,${st.l}%,${sa})`;ctx.fill();
+        ctx.beginPath();ctx.arc(st.x,st.y,st.r,0,Math.PI*2);
+        ctx.fillStyle=`hsla(${st.h},${st.s}%,${st.l}%,${sa})`;ctx.fill();
       });
       for(let i=comets.length-1;i>=0;i--){
         const cm=comets[i];cm.x+=Math.cos(cm.angle)*cm.spd;cm.y+=Math.sin(cm.angle)*cm.spd;cm.alpha-=0.012;
         if(cm.alpha<=0){comets.splice(i,1);continue;}
         const cg=ctx.createLinearGradient(cm.x,cm.y,cm.x-Math.cos(cm.angle)*cm.len,cm.y-Math.sin(cm.angle)*cm.len);
-        cg.addColorStop(0,`hsla(${cm.h},75%,80%,${cm.alpha.toFixed(2)})`);cg.addColorStop(0.4,`hsla(${cm.h},55%,62%,${(cm.alpha*0.25).toFixed(2)})`);cg.addColorStop(1,"rgba(3,1,12,0)");
-        ctx.beginPath();ctx.moveTo(cm.x,cm.y);ctx.lineTo(cm.x-Math.cos(cm.angle)*cm.len,cm.y-Math.sin(cm.angle)*cm.len);ctx.strokeStyle=cg;ctx.lineWidth=1.2;ctx.stroke();
+        cg.addColorStop(0,`hsla(${cm.h},75%,80%,${cm.alpha.toFixed(2)})`);
+        cg.addColorStop(0.4,`hsla(${cm.h},55%,62%,${(cm.alpha*0.25).toFixed(2)})`);
+        cg.addColorStop(1,"rgba(3,1,12,0)");
+        ctx.beginPath();ctx.moveTo(cm.x,cm.y);ctx.lineTo(cm.x-Math.cos(cm.angle)*cm.len,cm.y-Math.sin(cm.angle)*cm.len);
+        ctx.strokeStyle=cg;ctx.lineWidth=1.2;ctx.stroke();
       }
       raf=requestAnimationFrame(draw);
     }
-    resize();draw();cometTimer=setInterval(()=>{if(Math.random()<0.55)spawnComet();},3000);
+    resize();draw();ct=setInterval(()=>{if(Math.random()<0.55)spawnComet();},3000);
     window.addEventListener("resize",resize);
-    return()=>{cancelAnimationFrame(raf);clearInterval(cometTimer);window.removeEventListener("resize",resize);};
+    return()=>{cancelAnimationFrame(raf);clearInterval(ct);window.removeEventListener("resize",resize);};
   },[ref]);
 }
 function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
   useEffect(()=>{
     const c=ref.current;if(!c)return;
     const ctx=c.getContext("2d");
-    const RINGS=10,PPR=18;let pts=[],raf,modeT=0;
+    const RINGS=10,PPR=18;let pts=[],raf,mT=0;
+    function dpr(){return window.devicePixelRatio||1;}
     function resize(){
-      const dpr=window.devicePixelRatio||1;
       const W=document.documentElement.clientWidth||window.innerWidth;
       const H=document.documentElement.clientHeight||window.innerHeight;
+      const d=dpr();
       c.style.width=W+"px";c.style.height=H+"px";
-      c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.scale(dpr,dpr);
+      c.width=Math.round(W*d);c.height=Math.round(H*d);
+      ctx.setTransform(1,0,0,1,0,0);ctx.scale(d,d);
     }
     function build(){pts=[];for(let r=0;r<=RINGS;r++){const phi=(r/RINGS)*Math.PI;for(let p=0;p<PPR;p++)pts.push({phi,theta:(p/PPR)*Math.PI*2,bp:Math.random()*Math.PI*2,bs:0.015+Math.random()*0.03,sz:0.6+Math.random()*1.3});}}
     function rot(phi,theta,ry,rx,R){
@@ -189,20 +165,21 @@ function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
       const y2=y*Math.cos(rx)-z*Math.sin(rx),z2=y*Math.sin(rx)+z*Math.cos(rx);return{x,y:y2,z:z2};
     }
     function draw(){
-      const W=c.width,H=c.height;ctx.clearRect(0,0,W,H);raf=requestAnimationFrame(draw);
-      const alpha=alphaRef.current;if(alpha<=0.01)return;
-      sTRef.current+=0.0035;modeT+=0.004;
+      const W=c.width/(window.devicePixelRatio||1),H=c.height/(window.devicePixelRatio||1);
+      ctx.clearRect(0,0,W,H);raf=requestAnimationFrame(draw);
+      const al=alphaRef.current;if(al<=0.01)return;
+      sTRef.current+=0.0035;mT+=0.004;
       const sT=sTRef.current,mode=modeRef.current,cx=W/2,cy=H/2,base=Math.min(W,H)*0.13;
       let R,ry,rx,h1,rings,ppr,la,dm,hs,ha,ca;
-      if(mode==="galaxy"){R=base*(1.5+Math.sin(modeT*1.8)*0.1);ry=sT*1.8;rx=Math.sin(sT*0.7)*0.4;h1=(modeT*60)%360;la=0.14;dm=1.6;hs=3.2;ha=0.09;ca=0.18;rings=14;ppr=24;}
-      else if(mode==="star"){R=base*(1.25+Math.sin(modeT*1.2)*0.07);ry=sT*1.3;rx=Math.sin(sT*0.45)*0.3;h1=275+Math.sin(modeT*0.7)*35;la=0.10;dm=1.3;hs=2.5;ha=0.07;ca=0.12;rings=11;ppr=20;}
-      else if(mode==="rose"){R=base*(1.1+Math.sin(modeT*0.85)*0.05);ry=sT*0.85;rx=Math.sin(sT*0.3)*0.22;h1=15+Math.sin(modeT*0.35)*18;la=0.08;dm=1.1;hs=2.0;ha=0.055;ca=0.09;rings=10;ppr=18;}
+      if(mode==="galaxy"){R=base*(1.5+Math.sin(mT*1.8)*0.1);ry=sT*1.8;rx=Math.sin(sT*0.7)*0.4;h1=(mT*60)%360;la=0.14;dm=1.6;hs=3.2;ha=0.09;ca=0.18;rings=14;ppr=24;}
+      else if(mode==="star"){R=base*(1.25+Math.sin(mT*1.2)*0.07);ry=sT*1.3;rx=Math.sin(sT*0.45)*0.3;h1=275+Math.sin(mT*0.7)*35;la=0.10;dm=1.3;hs=2.5;ha=0.07;ca=0.12;rings=11;ppr=20;}
+      else if(mode==="rose"){R=base*(1.1+Math.sin(mT*0.85)*0.05);ry=sT*0.85;rx=Math.sin(sT*0.3)*0.22;h1=15+Math.sin(mT*0.35)*18;la=0.08;dm=1.1;hs=2.0;ha=0.055;ca=0.09;rings=10;ppr=18;}
       else{R=base*(1+Math.sin(sT*0.85)*0.025);ry=sT*0.5;rx=Math.sin(sT*0.26)*0.2;h1=(sT*12)%360;la=0.05;dm=1.0;hs=2.4;ha=0.045;ca=0.08;rings=RINGS;ppr=PPR;}
-      ctx.save();ctx.globalAlpha=alpha;
-      const og=ctx.createRadialGradient(cx,cy,R*0.5,cx,cy,R*hs);
+      ctx.save();ctx.globalAlpha=al;
+      let og=ctx.createRadialGradient(cx,cy,R*0.5,cx,cy,R*hs);
       og.addColorStop(0,`hsla(${h1},60%,68%,${ha})`);og.addColorStop(0.6,`hsla(${(h1+60)%360},50%,52%,${ha*0.4})`);og.addColorStop(1,"rgba(3,1,12,0)");
       ctx.beginPath();ctx.arc(cx,cy,R*hs,0,Math.PI*2);ctx.fillStyle=og;ctx.fill();
-      const ig=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.1);
+      let ig=ctx.createRadialGradient(cx,cy,0,cx,cy,R*1.1);
       ig.addColorStop(0,`hsla(${(h1+35)%360},72%,88%,${ca})`);ig.addColorStop(0.6,`hsla(${(h1+90)%360},60%,62%,${ca*0.45})`);ig.addColorStop(1,"rgba(3,1,12,0)");
       ctx.beginPath();ctx.arc(cx,cy,R*1.1,0,Math.PI*2);ctx.fillStyle=ig;ctx.fill();
       for(let r=1;r<rings;r++){
@@ -212,18 +189,18 @@ function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
         ctx.strokeStyle=`hsla(${rh},52%,78%,${la+d*0.1})`;ctx.lineWidth=0.45;ctx.stroke();
       }
       for(let p2=0;p2<ppr;p2+=2){
-        const theta2=(p2/ppr)*Math.PI*2;ctx.beginPath();let f2=true;
-        for(let s2=0;s2<=40;s2++){const phi2=(s2/40)*Math.PI,pt2=rot(phi2,theta2,ry,rx,R);if(f2){ctx.moveTo(cx+pt2.x,cy-pt2.y);f2=false;}else ctx.lineTo(cx+pt2.x,cy-pt2.y);}
+        const t2=(p2/ppr)*Math.PI*2;ctx.beginPath();let f2=true;
+        for(let s2=0;s2<=40;s2++){const phi2=(s2/40)*Math.PI,pt2=rot(phi2,t2,ry,rx,R);if(f2){ctx.moveTo(cx+pt2.x,cy-pt2.y);f2=false;}else ctx.lineTo(cx+pt2.x,cy-pt2.y);}
         ctx.strokeStyle=`hsla(${(h1+125)%360},48%,70%,${la*0.7})`;ctx.lineWidth=0.35;ctx.stroke();
       }
       pts.forEach(sp=>{
         sp.bp+=sp.bs*(mode==="galaxy"?2.0:mode==="star"?1.5:1.0);
-        const p3=rot(sp.phi,sp.theta,ry,rx,R),d2=(p3.z+R)/(2*R),blink=0.2+0.8*((Math.sin(sp.bp)+1)/2),al=d2*blink*0.8;
-        if(al<0.02)return;
+        const p3=rot(sp.phi,sp.theta,ry,rx,R),d2=(p3.z+R)/(2*R),bl=0.2+0.8*((Math.sin(sp.bp)+1)/2),a2=d2*bl*0.8;
+        if(a2<0.02)return;
         const dx=cx+p3.x,dy=cy-p3.y,dh=mode==="galaxy"?(h1+sp.phi*55+sp.theta*12)%360:(255+sp.phi*42+sp.theta*7)%360,sz=sp.sz*dm;
-        const dg=ctx.createRadialGradient(dx,dy,0,dx,dy,sz*4);dg.addColorStop(0,`hsla(${dh},65%,82%,${al*0.4})`);dg.addColorStop(1,"rgba(3,1,12,0)");
+        const dg=ctx.createRadialGradient(dx,dy,0,dx,dy,sz*4);dg.addColorStop(0,`hsla(${dh},65%,82%,${a2*0.4})`);dg.addColorStop(1,"rgba(3,1,12,0)");
         ctx.beginPath();ctx.arc(dx,dy,sz*4,0,Math.PI*2);ctx.fillStyle=dg;ctx.fill();
-        ctx.beginPath();ctx.arc(dx,dy,sz*Math.max(0.25,d2),0,Math.PI*2);ctx.fillStyle=`hsla(${dh},70%,88%,${al})`;ctx.fill();
+        ctx.beginPath();ctx.arc(dx,dy,sz*Math.max(0.25,d2),0,Math.PI*2);ctx.fillStyle=`hsla(${dh},70%,88%,${a2})`;ctx.fill();
       });
       ctx.restore();
     }
@@ -234,17 +211,17 @@ function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
 function useFxCanvas(ref,fxRef){
   useEffect(()=>{
     const c=ref.current;if(!c)return;const ctx=c.getContext("2d");let raf;
+    function dpr(){return window.devicePixelRatio||1;}
     function resize(){
-      const dpr=window.devicePixelRatio||1;
       const W=document.documentElement.clientWidth||window.innerWidth;
       const H=document.documentElement.clientHeight||window.innerHeight;
-      c.style.width=W+"px";c.style.height=H+"px";
-      c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);
-      ctx.setTransform(1,0,0,1,0,0);
-      ctx.scale(dpr,dpr);
+      const d=dpr();c.style.width=W+"px";c.style.height=H+"px";
+      c.width=Math.round(W*d);c.height=Math.round(H*d);
+      ctx.setTransform(1,0,0,1,0,0);ctx.scale(d,d);
     }
     function draw(){
-      ctx.clearRect(0,0,c.width,c.height);raf=requestAnimationFrame(draw);
+      const W=c.width/(window.devicePixelRatio||1),H=c.height/(window.devicePixelRatio||1);
+      ctx.clearRect(0,0,W,H);raf=requestAnimationFrame(draw);
       const fx=fxRef.current;if(!fx.active)return;
       for(let i=fx.rings.length-1;i>=0;i--){const r=fx.rings[i];r.r+=r.spd;r.alpha-=r.fade;if(r.alpha<=0||r.r>r.max){fx.rings.splice(i,1);continue;}ctx.beginPath();ctx.arc(r.x,r.y,r.r,0,Math.PI*2);ctx.strokeStyle=`hsla(${r.h},${r.s}%,${r.l}%,${r.alpha})`;ctx.lineWidth=r.w;ctx.stroke();}
       for(let i=fx.pts.length-1;i>=0;i--){const p=fx.pts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.018;p.alpha-=p.fade;if(p.alpha<=0){fx.pts.splice(i,1);continue;}ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=`hsla(${p.h},${p.s}%,${p.l}%,${p.alpha})`;ctx.fill();}
@@ -254,171 +231,84 @@ function useFxCanvas(ref,fxRef){
     return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);};
   },[ref,fxRef]);
 }
-function triggerEffect(fx,tier){
+function triggerFx(fx,tier){
   fx.rings=[];fx.pts=[];fx.active=true;
   const cx=window.innerWidth/2,cy=window.innerHeight/2,R=Math.min(window.innerWidth,window.innerHeight);
-  function ring(x,y,sr,mr,a,h,s,l,w,spd,fade){fx.rings.push({x,y,r:sr,max:mr,alpha:a,h,s,l,w,spd,fade});}
-  function pt(x,y,vx,vy,a,r,h,s,l,fade){fx.pts.push({x,y,vx,vy,alpha:a,r,h,s,l,fade});}
+  const ring=(x,y,sr,mr,a,h,s,l,w,spd,fade)=>fx.rings.push({x,y,r:sr,max:mr,alpha:a,h,s,l,w,spd,fade});
+  const pt=(x,y,vx,vy,a,r,h,s,l,fade)=>fx.pts.push({x,y,vx,vy,alpha:a,r,h,s,l,fade});
   if(tier==="rose"){
     ring(cx,cy,0,R*0.38,0.35,340,55,72,1.5,2.5,0.004);ring(cx,cy,0,R*0.28,0.22,350,50,68,3,1.8,0.003);
     setTimeout(()=>ring(cx,cy,0,R*0.45,0.18,330,52,70,1,2.0,0.003),400);
-    for(let i=0;i<30;i++){const a=Math.random()*Math.PI*2,spd=0.8+Math.random()*2;pt(cx,cy,Math.cos(a)*spd,Math.sin(a)*spd,0.5,0.8+Math.random()*1.5,338+Math.random()*15,58,74,0.006);}
-  } else if(tier==="star"){
-    ring(cx,cy,0,R*0.5,0.38,275,58,72,2,3.5,0.004);ring(cx,cy,0,R*0.35,0.28,265,52,68,4.5,2.5,0.003);ring(cx,cy,0,R*0.6,0.15,285,50,65,1.5,4,0.003);
+    for(let i=0;i<30;i++){const a=Math.random()*Math.PI*2,sp=0.8+Math.random()*2;pt(cx,cy,Math.cos(a)*sp,Math.sin(a)*sp,0.5,0.8+Math.random()*1.5,338+Math.random()*15,58,74,0.006);}
+  }else if(tier==="star"){
+    ring(cx,cy,0,R*0.5,0.38,275,58,72,2,3.5,0.004);ring(cx,cy,0,R*0.35,0.28,265,52,68,4.5,2.5,0.003);
     setTimeout(()=>ring(cx,cy,0,R*0.7,0.12,270,48,62,1,3,0.0025),350);
-    for(let i=0;i<45;i++){const a=Math.random()*Math.PI*2,spd=1+Math.random()*3.5;pt(cx,cy,Math.cos(a)*spd,Math.sin(a)*spd,0.55,0.7+Math.random()*2,268+Math.random()*25,60,76,0.006);}
-  } else {
-    ring(cx,cy,0,R*0.6,0.4,42,62,72,2.5,4,0.0035);ring(cx,cy,0,R*0.45,0.3,38,58,68,5,3,0.003);ring(cx,cy,0,R*0.75,0.2,48,55,65,1.5,4.5,0.003);
+    for(let i=0;i<45;i++){const a=Math.random()*Math.PI*2,sp=1+Math.random()*3.5;pt(cx,cy,Math.cos(a)*sp,Math.sin(a)*sp,0.55,0.7+Math.random()*2,268+Math.random()*25,60,76,0.006);}
+  }else{
+    ring(cx,cy,0,R*0.6,0.4,42,62,72,2.5,4,0.0035);ring(cx,cy,0,R*0.45,0.3,38,58,68,5,3,0.003);
     setTimeout(()=>{ring(cx,cy,0,R*0.85,0.18,44,52,62,1.5,5,0.0025);ring(cx,cy,0,R*0.5,0.25,50,60,70,4,3.5,0.003);},300);
     setTimeout(()=>ring(cx,cy,0,R*1.0,0.12,40,50,60,2,6,0.0022),600);
-    for(let i=0;i<60;i++){const a=Math.random()*Math.PI*2,spd=0.6+Math.random()*4;pt(cx,cy,Math.cos(a)*spd,Math.sin(a)*spd,0.6,0.6+Math.random()*2.2,38+Math.random()*18,62,76,0.005);}
+    for(let i=0;i<60;i++){const a=Math.random()*Math.PI*2,sp=0.6+Math.random()*4;pt(cx,cy,Math.cos(a)*sp,Math.sin(a)*sp,0.6,0.6+Math.random()*2.2,38+Math.random()*18,62,76,0.005);}
   }
 }
-
-/* ── MEDITATION AUDIO ENGINE ── */
 function createAmbience(){
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if(!AC) return null;
-  const ctx = new AC();
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0, ctx.currentTime);
-  master.gain.linearRampToValueAtTime(0.22, ctx.currentTime + 8);
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
+  const ctx=new AC();const master=ctx.createGain();
+  master.gain.setValueAtTime(0,ctx.currentTime);
+  master.gain.linearRampToValueAtTime(0.2,ctx.currentTime+8);
   master.connect(ctx.destination);
-
-  // Singing bowl simulation — strike + long decay ring
-  function bowl(freq, delay, gainVal){
+  function drone(freq,g){
+    const osc=ctx.createOscillator(),gn=ctx.createGain(),f=ctx.createBiquadFilter(),lfo=ctx.createOscillator(),lg=ctx.createGain();
+    osc.type="sine";osc.frequency.value=freq;f.type="lowpass";f.frequency.value=300;
+    lfo.frequency.value=0.07;lg.gain.value=freq*0.008;gn.gain.value=g;
+    lfo.connect(lg);lg.connect(osc.frequency);osc.connect(f);f.connect(gn);gn.connect(master);
+    osc.start();lfo.start();
+  }
+  function bowl(freq,delay,g){
     setTimeout(()=>{
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const g = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      osc1.type = "sine"; osc2.type = "sine";
-      osc1.frequency.value = freq;
-      osc2.frequency.value = freq * 1.0015; // slight detune for beating
-      filter.type = "bandpass";
-      filter.frequency.value = freq;
-      filter.Q.value = 12;
-      g.gain.setValueAtTime(0, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(gainVal, ctx.currentTime + 0.04);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 18);
-      osc1.connect(filter); osc2.connect(filter);
-      filter.connect(g); g.connect(master);
-      osc1.start(); osc2.start();
-      osc1.stop(ctx.currentTime + 20);
-      osc2.stop(ctx.currentTime + 20);
-    }, delay);
+      const o1=ctx.createOscillator(),o2=ctx.createOscillator(),gn=ctx.createGain(),f=ctx.createBiquadFilter();
+      o1.type="sine";o2.type="sine";o1.frequency.value=freq;o2.frequency.value=freq*1.0015;
+      f.type="bandpass";f.frequency.value=freq;f.Q.value=12;
+      gn.gain.setValueAtTime(0,ctx.currentTime);
+      gn.gain.linearRampToValueAtTime(g,ctx.currentTime+0.04);
+      gn.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+18);
+      o1.connect(f);o2.connect(f);f.connect(gn);gn.connect(master);
+      o1.start();o2.start();o1.stop(ctx.currentTime+20);o2.stop(ctx.currentTime+20);
+    },delay);
   }
-
-  // Deep space drone layer
-  function drone(freq, gainVal){
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    const lfo = ctx.createOscillator();
-    const lfoG = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = freq;
-    filter.type = "lowpass";
-    filter.frequency.value = 300;
-    lfo.frequency.value = 0.07;
-    lfoG.gain.value = freq * 0.008;
-    g.gain.value = gainVal;
-    lfo.connect(lfoG); lfoG.connect(osc.frequency);
-    osc.connect(filter); filter.connect(g); g.connect(master);
-    osc.start(); lfo.start();
-    return osc;
-  }
-
-  // Soft piano-like tone — triangle wave with fast decay
-  function piano(freq, delay, gainVal){
+  function piano(freq,delay,g){
     setTimeout(()=>{
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-      filter.type = "lowpass";
-      filter.frequency.value = freq * 3;
-      g.gain.setValueAtTime(0, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(gainVal, ctx.currentTime + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 6);
-      osc.connect(filter); filter.connect(g); g.connect(master);
-      osc.start();
-      osc.stop(ctx.currentTime + 7);
-    }, delay);
+      const osc=ctx.createOscillator(),gn=ctx.createGain(),f=ctx.createBiquadFilter();
+      osc.type="triangle";osc.frequency.value=freq;f.type="lowpass";f.frequency.value=freq*3;
+      gn.gain.setValueAtTime(0,ctx.currentTime);
+      gn.gain.linearRampToValueAtTime(g,ctx.currentTime+0.02);
+      gn.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+6);
+      osc.connect(f);f.connect(gn);gn.connect(master);osc.start();osc.stop(ctx.currentTime+7);
+    },delay);
   }
-
-  // Noise wash — soft background texture
-  function noiseWash(){
-    const dur = ctx.sampleRate * 4;
-    const buf = ctx.createBuffer(1, dur, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for(let i=0;i<dur;i++) data[i]=(Math.random()*2-1)*0.06;
-    const src2 = ctx.createBufferSource();
-    src2.buffer = buf; src2.loop = true;
-    const f1 = ctx.createBiquadFilter();
-    const f2 = ctx.createBiquadFilter();
-    f1.type = "highpass"; f1.frequency.value = 80;
-    f2.type = "lowpass"; f2.frequency.value = 280;
-    const g = ctx.createGain(); g.gain.value = 0.08;
-    src2.connect(f1); f1.connect(f2); f2.connect(g); g.connect(master);
-    src2.start();
-    return src2;
+  function noise(){
+    const dur=ctx.sampleRate*4,buf=ctx.createBuffer(1,dur,ctx.sampleRate),data=buf.getChannelData(0);
+    for(let i=0;i<dur;i++)data[i]=(Math.random()*2-1)*0.06;
+    const src=ctx.createBufferSource(),f1=ctx.createBiquadFilter(),f2=ctx.createBiquadFilter(),gn=ctx.createGain();
+    src.buffer=buf;src.loop=true;f1.type="highpass";f1.frequency.value=80;f2.type="lowpass";f2.frequency.value=280;gn.gain.value=0.08;
+    src.connect(f1);f1.connect(f2);f2.connect(gn);gn.connect(master);src.start();
   }
-
-  // Build the soundscape
-  // Continuous drones — deep foundation
-  drone(36, 0.5);
-  drone(54, 0.25);
-  drone(72, 0.12);
-  noiseWash();
-
-  // Singing bowls — Tibetan scale (C, E, G, B, D)
-  // They repeat on a long cycle so it never sounds looped
-  function bowlCycle(){
-    const notes = [
-      {f:130.8,g:0.4,d:0},     // C3
-      {f:164.8,g:0.3,d:3200},  // E3
-      {f:196.0,g:0.35,d:7500}, // G3
-      {f:246.9,g:0.25,d:13000},// B3
-      {f:293.7,g:0.28,d:19000},// D4
-      {f:261.6,g:0.3,d:27000}, // C4
-      {f:130.8,g:0.2,d:36000}, // C3 again - very soft
-    ];
-    notes.forEach(n=>bowl(n.f,n.d,n.g));
-    // Piano melody notes interspersed — pentatonic, meditative
-    const melody = [
-      {f:261.6,d:1000,g:0.12},
-      {f:293.7,d:5000,g:0.10},
-      {f:329.6,d:10000,g:0.11},
-      {f:261.6,d:16000,g:0.09},
-      {f:246.9,d:22000,g:0.10},
-      {f:220.0,d:30000,g:0.08},
-    ];
-    melody.forEach(m=>piano(m.f,m.d,m.g));
+  drone(36,0.5);drone(54,0.25);drone(72,0.12);noise();
+  function cycle(){
+    bowl(130.8,0,0.4);bowl(164.8,3200,0.3);bowl(196.0,7500,0.35);bowl(246.9,13000,0.25);bowl(293.7,19000,0.28);
+    piano(261.6,1000,0.1);piano(293.7,5000,0.09);piano(329.6,10000,0.1);piano(261.6,16000,0.08);
   }
-  bowlCycle();
-  // Repeat every 45 seconds so it runs for hours without looping
-  const cycleTimer = setInterval(bowlCycle, 45000);
-
-  return { ctx, master, cycleTimer };
+  cycle();const t=setInterval(cycle,45000);
+  return{ctx,master,timer:t};
 }
-
-let ambienceObj = null;
-let ambienceStarted = false;
-
-function startAmbience(){
-  if(ambienceStarted) return;
-  ambienceStarted = true;
-  try{ ambienceObj = createAmbience(); }catch(e){ console.log("Audio error:", e); }
-}
-
-function fadeAmbience(toGain, duration){
-  if(!ambienceObj || !ambienceObj.ctx) return;
-  const now = ambienceObj.ctx.currentTime;
-  ambienceObj.master.gain.cancelScheduledValues(now);
-  ambienceObj.master.gain.setValueAtTime(ambienceObj.master.gain.value, now);
-  ambienceObj.master.gain.linearRampToValueAtTime(toGain, now + duration);
+let ambiObj=null,ambiStarted=false;
+function startAmbience(){if(ambiStarted)return;ambiStarted=true;try{ambiObj=createAmbience();}catch(e){}}
+function fadeAmbience(to,dur){
+  if(!ambiObj||!ambiObj.ctx)return;
+  const now=ambiObj.ctx.currentTime;
+  ambiObj.master.gain.cancelScheduledValues(now);
+  ambiObj.master.gain.setValueAtTime(ambiObj.master.gain.value,now);
+  ambiObj.master.gain.linearRampToValueAtTime(to,now+dur);
 }
 
 function App(){
@@ -438,12 +328,12 @@ function App(){
   const [toastVisible,setToastVisible]=useState(false);
   const [nudgeText,setNudgeText]=useState("");
   const [nudgeOn,setNudgeOn]=useState(false);
-  const [liveTitleIdx,setLiveTitleIdx]=useState(0);
-  const [titleVisible,setTitleVisible]=useState(true);
-  const [questionCount,setQuestionCount]=useState(0);
-  const [currentViewer,setCurrentViewer]=useState("");
-  const [spherePulse,setSpherePulse]=useState(false);
+  const [titleIdx,setTitleIdx]=useState(0);
+  const [titleVis,setTitleVis]=useState(true);
+  const [qCount,setQCount]=useState(0);
+  const [viewer,setViewer]=useState("");
   const [viewerFade,setViewerFade]=useState(false);
+  const [spherePulse,setSpherePulse]=useState(false);
   useBgCanvas(bgRef);useSoulCanvas(soulRef,alphaRef,modeRef,sTRef);useFxCanvas(fxRef,fxState);
   const fadeSoul=useCallback((to,dur=700)=>new Promise(res=>{
     const from=alphaRef.current,t0=performance.now();
@@ -459,49 +349,35 @@ function App(){
   const startNudge=useCallback(()=>{
     stopNudge();let idx=0;
     const show=()=>{setNudgeOn(false);setTimeout(()=>{idx=(idx+1)%NUDGE_MSGS.length;setNudgeText(NUDGE_MSGS[idx]);setNudgeOn(true);setTimeout(()=>setNudgeOn(false),4200);},1000);};
-    setTimeout(()=>{setNudgeText(NUDGE_MSGS[0]);setNudgeOn(true);setTimeout(()=>setNudgeOn(false),4200);nudgeTimer.current=setInterval(show,10000);},6000);
-    setLiveTitleIdx(prev=>(prev+1)%LIVE_TITLES.length);
+    setTimeout(()=>{setNudgeText(NUDGE_MSGS[0]);setNudgeOn(true);setTimeout(()=>setNudgeOn(false),4200);nudgeTimer.current=setInterval(show,10000);},8000);
   },[stopNudge]);
   const display=useCallback((item)=>{
     const tier=item.gifted?item.level:"none";
-    const soulTarget={rose:"rose",star:"star",galaxy:"galaxy",none:"idle"}[tier]||"idle";
-    const holdTime=tier==="galaxy"?6500:tier==="star"?5200:tier==="rose"?4600:3600;
-    fadeAmbience(0.06, 2);
-    setQuestionCount(prev=>prev+1);
-    if(item.viewer){
-      setViewerFade(false);
-      setTimeout(()=>{setCurrentViewer(item.viewer);setViewerFade(true);},200);
-    }
+    const soul={rose:"rose",star:"star",galaxy:"galaxy",none:"idle"}[tier]||"idle";
+    const hold=tier==="galaxy"?6500:tier==="star"?5200:tier==="rose"?4600:3600;
+    setQCount(p=>p+1);
+    if(item.viewer){setViewerFade(false);setTimeout(()=>{setViewer(item.viewer);setViewerFade(true);},200);}
     if(item.gifted){setSpherePulse(true);setTimeout(()=>setSpherePulse(false),2000);}
+    fadeAmbience(0.06,2);
     return fadeSoul(0,600)
-      .then(()=>{setIdle(false);modeRef.current=soulTarget;return wait(300);})
-      .then(()=>{if(item.gifted)triggerEffect(fxState.current,tier);setToastVisible(true);return wait(700);})
+      .then(()=>{setIdle(false);modeRef.current=soul;return wait(300);})
+      .then(()=>{if(item.gifted)triggerFx(fxState.current,tier);setToastVisible(true);return wait(700);})
       .then(()=>{setToastVisible(false);return wait(200);})
       .then(()=>{
-        setGiftBadge(item.gifted?(tier==="galaxy"?"galaxy moment":tier==="star"?"star featured":"featured"):null);
+        setGiftBadge(item.gifted?(tier==="galaxy"?"\u2756 galaxy moment":tier==="star"?"\u2756 star featured":"\u2756 featured"):null);
         setMsgVisible(true);setDivVisible(false);setReplyText("");setThinking(false);
-        return fixTypos(item.text).then(cleaned=>typewrite(setUnsentText,cleaned||item.text,40));
+        return fixTypos(item.text).then(clean=>typewrite(setUnsentText,clean||item.text,40));
       })
       .then(()=>wait(550))
       .then(()=>{setDivVisible(true);return wait(700);})
-      .then(()=>{
-        setThinking(true);
-        const fallback=getFallbackReply(recentRef.current);
-        const cleanedText=document.getElementById&&unsentText?unsentText:item.text;
-        return generateReply(cleanedText||item.text)
-          .then(r=>{recentRef.current=[...recentRef.current.slice(-5),r];return r;})
-          .catch(()=>fallback);
-      })
-      .then(reply=>{
-        setThinking(false);
-        if(!reply||typeof reply!=="string")reply=getFallbackReply(recentRef.current);
-        return typewrite(setReplyText,reply,50);
-      })
-      .then(()=>wait(holdTime))
+      .then(()=>{setThinking(true);const fb=getFallback(recentRef.current);return genReply(item.text).then(r=>{recentRef.current=[...recentRef.current.slice(-5),r];return r;}).catch(()=>fb);})
+      .then(reply=>{setThinking(false);if(!reply||typeof reply!=="string")reply=getFallback(recentRef.current);return typewrite(setReplyText,reply,50);})
+      .then(()=>wait(hold))
       .then(()=>{setMsgFading(true);setGiftBadge(null);return wait(1000);})
       .then(()=>{
         setMsgVisible(false);setMsgFading(false);setUnsentText("");setReplyText("");setDivVisible(false);
-        modeRef.current="idle";setIdle(true);fadeAmbience(0.18,3);setCurrentViewer("");setViewerFade(false);return fadeSoul(1,900);
+        modeRef.current="idle";setIdle(true);setViewer("");setViewerFade(false);
+        fadeAmbience(0.18,3);return fadeSoul(1,900);
       });
   },[fadeSoul,typewrite]);
   const next=useCallback(()=>{
@@ -509,38 +385,31 @@ function App(){
     if(!item){playing.current=false;startNudge();return;}
     playing.current=true;stopNudge();display(item).then(next);
   },[display,startNudge,stopNudge]);
-  const enqueue=useCallback((text,gifted,level,viewer)=>{
+  const enqueue=useCallback((text,gifted,level,v)=>{
     if(!text||typeof text!=="string")return;
-    const item={text:text.trim(),gifted:gifted||false,level:level||"none",viewer:viewer||""};
+    const item={text:text.trim(),gifted:gifted||false,level:level||"none",viewer:v||""};
     if(gifted)priQ.current.push(item);else freeQ.current.push(item);
     if(!playing.current)next();
   },[next]);
   useEffect(()=>{startNudge();return stopNudge;},[startNudge,stopNudge]);
-
   useEffect(()=>{
-    // Start audio on first click/touch (browser autoplay policy)
-    const start = ()=>{ startAmbience(); };
-    window.addEventListener("click", start, {once:true});
-    window.addEventListener("touchstart", start, {once:true});
-    // Also try autostart after short delay
-    setTimeout(()=>{ try{ startAmbience(); }catch(e){} }, 1000);
-    return()=>{ window.removeEventListener("click",start); window.removeEventListener("touchstart",start); };
-  },[]);
-
-  useEffect(()=>{
-    const timer=setInterval(()=>{
-      setTitleVisible(false);
-      setTimeout(()=>{setLiveTitleIdx(prev=>(prev+1)%2);setTitleVisible(true);},800);
-    },10000);
+    const timer=setInterval(()=>{setTitleVis(false);setTimeout(()=>{setTitleIdx(p=>(p+1)%2);setTitleVis(true);},800);},12000);
     return()=>clearInterval(timer);
   },[]);
   useEffect(()=>{
+    const start=()=>startAmbience();
+    window.addEventListener("click",start,{once:true});
+    window.addEventListener("touchstart",start,{once:true});
+    setTimeout(()=>{try{startAmbience();}catch(e){}},1000);
+    return()=>{window.removeEventListener("click",start);window.removeEventListener("touchstart",start);};
+  },[]);
+  useEffect(()=>{
     if(!BRIDGE_URL)return;
-    let ws,reconnTimer;
+    let ws,rt;
     function connect(){
       ws=new WebSocket(BRIDGE_URL);
-      ws.onopen=()=>console.log("[Bridge] Connected");
-      ws.onclose=()=>{reconnTimer=setTimeout(connect,5000);};
+      ws.onopen=()=>console.log("[Bridge] connected");
+      ws.onclose=()=>{rt=setTimeout(connect,5000);};
       ws.onerror=()=>{};
       ws.onmessage=(e)=>{
         let d;try{d=JSON.parse(e.data);}catch{return;}
@@ -550,15 +419,14 @@ function App(){
           const level=gifted?pg.tier:"none";
           if(gifted)delete pendingGifts.current[d.user];
           enqueue(d.text,gifted,level,d.displayName||d.user||"");
-        } else if(d.type==="gift"){
+        }else if(d.type==="gift"){
           pendingGifts.current[d.user]={tier:d.tier,ts:Date.now()};
         }
       };
     }
-    connect();
-    return()=>{if(ws)ws.close();clearTimeout(reconnTimer);};
+    connect();return()=>{if(ws)ws.close();clearTimeout(rt);};
   },[enqueue]);
-  const divColor=giftBadge?giftBadge.includes("galaxy")?"rgba(220,185,100,0.65)":giftBadge.includes("star")?"rgba(148,92,210,0.7)":"rgba(218,108,130,0.65)":"rgba(218,108,130,0.45)";
+  const divColor=giftBadge?(giftBadge.includes("galaxy")?"rgba(220,185,100,0.65)":giftBadge.includes("star")?"rgba(148,92,210,0.7)":"rgba(218,108,130,0.65)"):"rgba(218,108,130,0.45)";
   return(
     <div style={{width:"100vw",height:"100vh",background:"#03010c",overflow:"hidden",fontFamily:"'Outfit',sans-serif",color:"#f6eeff",position:"relative"}}>
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;700&display=swap" rel="stylesheet"/>
@@ -566,105 +434,56 @@ function App(){
         @keyframes hb{0%,100%{transform:scale(1)}15%{transform:scale(1.26)}30%{transform:scale(1)}45%{transform:scale(1.12)}60%{transform:scale(1)}}
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
         @keyframes tp{0%,100%{opacity:.25}50%{opacity:.9}}
-        @keyframes fadeIn{from{opacity:0;transform:translate(-50%,calc(-50% + 12px))}to{opacity:1;transform:translate(-50%,-50%)}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        .cursor{display:inline-block;width:2px;height:.88em;background:#f6eeff;vertical-align:middle;margin-left:2px;animation:blink 1s step-end infinite;}
+        @keyframes sRing{from{transform:scale(0.8);opacity:0.8}to{transform:scale(2.5);opacity:0}}
+        .cursor{display:inline-block;width:2px;height:.88em;background:#f6eeff;vertical-align:middle;margin-left:2px;animation:blink 1s step-end infinite}
         .td1{animation:tp 1.2s ease-in-out infinite}
         .td2{animation:tp 1.2s ease-in-out .2s infinite}
         .td3{animation:tp 1.2s ease-in-out .4s infinite}
-        @keyframes sphereRing{from{transform:scale(0.8);opacity:0.8}to{transform:scale(2.5);opacity:0}}
-        @keyframes counterPop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
       `}</style>
       <canvas ref={bgRef} style={{position:"fixed",inset:0,zIndex:0}}/>
       <canvas ref={soulRef} style={{position:"fixed",inset:0,zIndex:2,pointerEvents:"none"}}/>
       <canvas ref={fxRef} style={{position:"fixed",inset:0,zIndex:4,pointerEvents:"none"}}/>
       <div style={{position:"fixed",inset:0,zIndex:3,pointerEvents:"none",background:"radial-gradient(ellipse at center,transparent 20%,rgba(3,1,12,.45) 60%,rgba(3,1,12,.97) 100%)"}}/>
-      {/* QUESTION COUNTER — top left */}
-      <div style={{position:"fixed",top:"4%",left:"5%",zIndex:8,
-        display:"flex",flexDirection:"column",alignItems:"flex-start",gap:2}}>
-        <div style={{fontSize:"clamp(8px,1.5vmin,11px)",letterSpacing:"0.28em",
-          textTransform:"uppercase",color:"rgba(246,238,255,0.22)",fontWeight:300}}>questions asked</div>
-        <div style={{fontSize:"clamp(22px,5vmin,42px)",fontWeight:200,
-          color:"rgba(246,238,255,0.7)",lineHeight:1,
-          textShadow:"0 0 20px rgba(188,162,255,0.3)"}}>
-          {String(questionCount).padStart(2,"0")}
-        </div>
+      {/* question counter */}
+      <div style={{position:"fixed",top:"4%",left:"5%",zIndex:8,display:"flex",flexDirection:"column",gap:2}}>
+        <div style={{fontSize:"clamp(8px,1.5vmin,11px)",letterSpacing:"0.28em",textTransform:"uppercase",color:"rgba(246,238,255,0.22)",fontWeight:300}}>questions asked</div>
+        <div style={{fontSize:"clamp(20px,4.5vmin,38px)",fontWeight:200,color:"rgba(246,238,255,0.65)",lineHeight:1,textShadow:"0 0 20px rgba(188,162,255,0.25)"}}>{String(qCount).padStart(2,"0")}</div>
       </div>
-
-      {/* VIEWER NAME — bottom, fades in when message shows */}
-      {currentViewer&&(
-        <div style={{position:"fixed",bottom:"18%",left:"50%",transform:"translateX(-50%)",
-          zIndex:8,textAlign:"center",
-          opacity:viewerFade?1:0,transition:"opacity 0.8s ease"}}>
-          <div style={{fontSize:"clamp(9px,1.6vmin,12px)",letterSpacing:"0.3em",
-            textTransform:"uppercase",color:"rgba(218,108,130,0.6)",fontWeight:300,marginBottom:3}}>
-            from
-          </div>
-          <div style={{fontSize:"clamp(12px,2.2vmin,18px)",fontWeight:200,
-            letterSpacing:"0.15em",color:"rgba(246,238,255,0.55)"}}>
-            @{currentViewer}
-          </div>
+      {/* sphere pulse */}
+      {spherePulse&&<div style={{position:"fixed",inset:0,zIndex:7,pointerEvents:"none",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{width:"40vmin",height:"40vmin",borderRadius:"50%",border:"1px solid rgba(220,185,100,0.6)",animation:"sRing 1.8s ease-out forwards"}}/></div>}
+      {/* idle */}
+      {idle&&<div style={{position:"fixed",inset:0,zIndex:5,pointerEvents:"none"}}>
+        <div style={{position:"absolute",top:"28%",left:"50%",width:"88%",textAlign:"center",fontSize:"clamp(22px,5vmin,50px)",fontWeight:300,letterSpacing:"0.03em",lineHeight:1.48,color:"rgba(246,238,255,.88)",transform:"translate(-50%,-50%)",opacity:titleVis?1:0,transition:"opacity 0.8s ease"}}>
+          {LIVE_TITLES[titleIdx]}
+          <br/>
+          <span style={{fontSize:"clamp(13px,2.8vmin,24px)",fontWeight:200,letterSpacing:"0.06em",color:"rgba(218,108,130,0.8)"}}>{LIVE_SUBTITLES[titleIdx]}</span>
+          <span style={{display:"inline-block",color:"rgb(218,108,130)",marginLeft:8,verticalAlign:"middle",filter:"drop-shadow(0 0 7px rgba(218,108,130,.75))",animation:"hb 2s ease-in-out infinite"}}>&hearts;</span>
         </div>
-      )}
-
-      {/* SPHERE PULSE RING — appears on gift */}
-      {spherePulse&&(
-        <div style={{position:"fixed",inset:0,zIndex:7,pointerEvents:"none",
-          display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <div style={{width:"40vmin",height:"40vmin",borderRadius:"50%",
-            border:"1px solid rgba(220,185,100,0.6)",
-            animation:"sphereRing 1.8s ease-out forwards"}}/>
+        <div style={{position:"absolute",bottom:"6%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(11px,2vmin,15px)",fontWeight:300,letterSpacing:"0.18em",textTransform:"uppercase",color:"rgba(246,238,255,.18)",whiteSpace:"nowrap"}}>
+          type any &hearts; emoji + your question
         </div>
-      )}
-
-      {idle&&(
-        <div style={{position:"fixed",inset:0,zIndex:5,pointerEvents:"none"}}>
-          <div style={{position:"absolute",top:"28%",left:"50%",width:"88%",textAlign:"center",fontSize:"clamp(22px,5vmin,52px)",fontWeight:300,letterSpacing:"0.03em",lineHeight:1.48,color:"rgba(246,238,255,.88)",animation:"fadeIn 1.8s ease .8s both",opacity:titleVisible?1:0,transition:"opacity 0.8s ease"}}>
-            {LIVE_TITLES[liveTitleIdx]}
-            <br/>
-            <span style={{fontSize:"clamp(13px,2.8vmin,26px)",fontWeight:200,letterSpacing:"0.08em",color:"rgba(218,108,130,0.8)"}}>
-              {LIVE_SUBTITLES[liveTitleIdx]}
-            </span>
-          </div>
-          <div style={{position:"absolute",bottom:"6%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(11px,2vmin,16px)",fontWeight:300,letterSpacing:"0.2em",textTransform:"uppercase",color:"rgba(246,238,255,.18)",whiteSpace:"nowrap",animation:"fadeUp 1.5s ease 2.2s both",textAlign:"center"}}>
-            type <span style={{color:"rgba(218,108,130,.55)"}}>♥</span> + your question in chat
-            {(freeQ.current.length+priQ.current.length)>0&&(
-              <div style={{fontSize:"clamp(9px,1.4vmin,11px)",color:"rgba(220,185,100,0.45)",marginTop:4,letterSpacing:"0.2em"}}>
-                {freeQ.current.length+priQ.current.length} question{freeQ.current.length+priQ.current.length!==1?"s":""} waiting
-              </div>
-            )}
-          </div>
-          <div style={{position:"absolute",bottom:"12%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(10px,1.8vmin,14px)",letterSpacing:"0.18em",textTransform:"uppercase",whiteSpace:"nowrap",transition:"opacity 1.2s ease",opacity:nudgeOn?0.42:0,color:"rgba(220,185,100,1)"}}>
-            ✦ {nudgeText}
-          </div>
+        <div style={{position:"absolute",bottom:"12%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(10px,1.8vmin,13px)",letterSpacing:"0.16em",textTransform:"uppercase",whiteSpace:"nowrap",transition:"opacity 1.2s ease",opacity:nudgeOn?0.42:0,color:"rgba(220,185,100,1)"}}>
+          &diams; {nudgeText}
         </div>
-      )}
+      </div>}
+      {/* stage */}
       <div style={{position:"fixed",inset:0,zIndex:6,display:"flex",alignItems:"center",justifyContent:"center",padding:"5vmin"}}>
         <div style={{width:"100%",maxWidth:"90vmin",textAlign:"center",opacity:msgVisible?(msgFading?0:1):0,transition:"opacity 1s ease"}}>
-          {giftBadge&&(
-            <div style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:"clamp(10px,1.8vmin,14px)",fontWeight:300,letterSpacing:"0.22em",textTransform:"uppercase",color:"rgba(220,185,100,.72)",marginBottom:"2vmin",animation:"fadeUp .5s ease both"}}>
-              <div style={{width:4,height:4,borderRadius:"50%",background:"rgb(220,185,100)",boxShadow:"0 0 5px rgb(220,185,100)"}}/>
-              {giftBadge}
-            </div>
-          )}
-          <div style={{fontSize:"clamp(20px,4.5vmin,48px)",fontWeight:200,lineHeight:1.65,letterSpacing:"0.01em",color:"#f6eeff",minHeight:"2em"}}>
-            {unsentText}
-            {msgVisible&&!replyText&&!thinking&&<span className="cursor"/>}
+          {giftBadge&&<div style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:"clamp(10px,1.8vmin,13px)",fontWeight:300,letterSpacing:"0.22em",textTransform:"uppercase",color:"rgba(220,185,100,.72)",marginBottom:"2vmin"}}><div style={{width:4,height:4,borderRadius:"50%",background:"rgb(220,185,100)",boxShadow:"0 0 5px rgb(220,185,100)"}}/>{giftBadge}</div>}
+          <div style={{fontSize:"clamp(20px,4.5vmin,46px)",fontWeight:200,lineHeight:1.65,color:"#f6eeff",minHeight:"2em"}}>
+            {unsentText}{msgVisible&&!replyText&&!thinking&&<span className="cursor"/>}
           </div>
-          <div style={{width:"clamp(20px,4vmin,32px)",height:1,background:`linear-gradient(to right,transparent,${divColor},transparent)`,margin:"3vmin auto",opacity:divVisible?1:0,transform:divVisible?"scaleX(1)":"scaleX(0)",transition:"opacity .6s ease,transform .6s ease"}}/>
-          {thinking&&(
-            <div style={{display:"flex",gap:"1vmin",justifyContent:"center",marginBottom:"1vmin"}}>
-              {["td1","td2","td3"].map(c=><div key={c} className={c} style={{width:"clamp(2px,0.6vmin,4px)",height:"clamp(2px,0.6vmin,4px)",borderRadius:"50%",background:"rgba(188,162,255,.5)"}}/>)}
-            </div>
-          )}
-          <div style={{fontSize:"clamp(14px,3vmin,32px)",fontWeight:300,lineHeight:1.8,letterSpacing:"0.04em",color:"rgba(188,162,255,.88)",minHeight:"1.8em"}}>
-            {replyText}
-          </div>
+          <div style={{width:"clamp(20px,4vmin,30px)",height:1,background:`linear-gradient(to right,transparent,${divColor},transparent)`,margin:"3vmin auto",opacity:divVisible?1:0,transform:divVisible?"scaleX(1)":"scaleX(0)",transition:"opacity .6s ease,transform .6s ease"}}/>
+          {thinking&&<div style={{display:"flex",gap:"1vmin",justifyContent:"center",marginBottom:"1vmin"}}>{["td1","td2","td3"].map(c=><div key={c} className={c} style={{width:"clamp(2px,0.6vmin,4px)",height:"clamp(2px,0.6vmin,4px)",borderRadius:"50%",background:"rgba(188,162,255,.5)"}}/>)}</div>}
+          <div style={{fontSize:"clamp(14px,3vmin,30px)",fontWeight:300,lineHeight:1.8,color:"rgba(188,162,255,.88)",minHeight:"1.8em"}}>{replyText}</div>
+          {viewer&&<div style={{marginTop:"3vmin",opacity:viewerFade?1:0,transition:"opacity 0.8s ease",textAlign:"center"}}>
+            <div style={{fontSize:"clamp(9px,1.5vmin,11px)",letterSpacing:"0.28em",textTransform:"uppercase",color:"rgba(218,108,130,0.5)",marginBottom:3}}>from</div>
+            <div style={{fontSize:"clamp(11px,2vmin,16px)",fontWeight:200,letterSpacing:"0.12em",color:"rgba(246,238,255,0.45)"}}>@{viewer}</div>
+          </div>}
         </div>
       </div>
-      <div style={{position:"fixed",bottom:"4%",left:"50%",transform:`translateX(-50%) translateY(${toastVisible?0:8}px)`,zIndex:20,fontSize:"clamp(9px,1.5vmin,12px)",fontWeight:300,letterSpacing:"0.3em",textTransform:"uppercase",color:"rgba(246,238,255,.22)",opacity:toastVisible?1:0,transition:"opacity .4s,transform .4s"}}>
-        receiving
-      </div>
+      {/* toast */}
+      <div style={{position:"fixed",bottom:"4%",left:"50%",transform:`translateX(-50%) translateY(${toastVisible?0:8}px)`,zIndex:20,fontSize:"clamp(9px,1.5vmin,11px)",fontWeight:300,letterSpacing:"0.3em",textTransform:"uppercase",color:"rgba(246,238,255,.22)",opacity:toastVisible?1:0,transition:"opacity .4s,transform .4s"}}>receiving</div>
     </div>
   );
 }
