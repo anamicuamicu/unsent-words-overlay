@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UnsentWords</title>
+    <style>* { margin: 0; padding: 0; box-sizing: border-box; } body { overflow: hidden; background: #03010c; }</style>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
