@@ -571,7 +571,7 @@ function App() {
       <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;700&display=swap" rel="stylesheet"/>
       {/* Bridge status pill — top left, only shows when bridge URL is set */}
       {BRIDGE_URL && (
-        <div style={{position:"fixed",top:18,left:18,zIndex:50,display:"flex",alignItems:"center",gap:7,padding:"6px 12px",background:"rgba(3,1,12,0.7)",border:"1px solid rgba(246,238,255,0.07)",borderRadius:20,fontSize:9,letterSpacing:"0.18em",textTransform:"uppercase",color:"rgba(246,238,255,0.3)",backdropFilter:"blur(8px)"}}>
+        <div style={{position:"fixed",top:18,left:18,zIndex:50,display:"flex",alignItems:"center",gap:7,padding:"6px 12px",background:"rgba(3,1,12,0.7)",border:"1px solid rgba(246,238,255,0.07)",borderRadius:20,fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",color:"rgba(246,238,255,0.3)",backdropFilter:"blur(8px)"}}>
           <div style={{width:5,height:5,borderRadius:"50%",background:bridgeStatus==="live"?"rgba(100,220,160,0.9)":bridgeStatus==="connecting"?"rgba(220,185,100,0.9)":"rgba(220,100,100,0.7)",boxShadow:bridgeStatus==="live"?"0 0 5px rgba(100,220,160,0.5)":"none",transition:"background 0.4s"}}/>
           {bridgeStatus==="live"?"live"+(viewers!==null?" · "+viewers+" viewers":""):bridgeStatus==="connecting"?"connecting...":"bridge offline"}
         </div>
@@ -599,7 +599,7 @@ function App() {
       {/* IDLE */}
       {idle && (
         <div style={{position:"fixed",inset:0,zIndex:5,pointerEvents:"none"}}>
-          <div style={{position:"absolute",top:"28%",left:"50%",width:"88%",textAlign:"center",fontSize:"clamp(42px,9vw,78px)",fontWeight:300,letterSpacing:"0.03em",lineHeight:1.48,color:"rgba(246,238,255,.88)",animation:"fadeIn 1.8s ease .8s both"}}>
+          <div style={{position:"absolute",top:"28%",left:"50%",width:"88%",textAlign:"center",fontSize:"4.5vmin",fontWeight:300,letterSpacing:"0.03em",lineHeight:1.48,color:"rgba(246,238,255,.88)",animation:"fadeIn 1.8s ease .8s both"}}>
             If you had{" "}
             <span style={{fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em"}}>one</span>
             {" "}last message…<br/>what would you say?
@@ -623,7 +623,7 @@ function App() {
               {giftBadge}
             </div>
           )}
-          <div style={{fontSize:"clamp(34px,7.5vw,62px)",fontWeight:200,lineHeight:1.68,letterSpacing:"0.01em",color:"#f6eeff",minHeight:"2em"}}>
+          <div style={{fontSize:"3.5vmin",fontWeight:200,lineHeight:1.68,letterSpacing:"0.01em",color:"#f6eeff",minHeight:"2em"}}>
             {unsentText}
             {msgVisible&&!replyText&&!thinking&&<span className="cursor"/>}
           </div>
@@ -633,7 +633,7 @@ function App() {
               {["td1","td2","td3"].map(c=><div key={c} className={c} style={{width:3,height:3,borderRadius:"50%",background:"rgba(188,162,255,.5)"}}/>)}
             </div>
           )}
-          <div style={{fontSize:"clamp(24px,5.5vw,42px)",fontWeight:300,lineHeight:1.82,letterSpacing:"0.04em",color:"rgba(188,162,255,.88)",minHeight:"1.8em"}}>
+          <div style={{fontSize:"2.2vmin",fontWeight:300,lineHeight:1.82,letterSpacing:"0.04em",color:"rgba(188,162,255,.88)",minHeight:"1.8em"}}>
             {replyText}
           </div>
         </div>
@@ -645,7 +645,7 @@ function App() {
       </div>
 
       {/* PANEL TOGGLE */}
-      <button onClick={()=>setPanelOpen(o=>!o)} style={{position:"fixed",top:18,right:18,zIndex:50,background:"rgba(246,238,255,.04)",border:"1px solid rgba(246,238,255,.09)",color:"rgba(246,238,255,.35)",fontFamily:"'Outfit',sans-serif",fontSize:9,letterSpacing:"0.18em",textTransform:"uppercase",padding:"8px 13px",cursor:"pointer"}}>
+      <button onClick={()=>setPanelOpen(o=>!o)} style={{position:"fixed",top:18,right:18,zIndex:50,background:"rgba(246,238,255,.04)",border:"1px solid rgba(246,238,255,.09)",color:"rgba(246,238,255,.35)",fontFamily:"'Outfit',sans-serif",fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",padding:"8px 13px",cursor:"pointer"}}>
         ♥ live panel
       </button>
 
@@ -676,7 +676,7 @@ function App() {
                   </div>
                 ))}
               </div>
-              <button onClick={simChat} style={{width:"100%",padding:8,marginTop:10,background:"rgba(148,92,210,.07)",border:"1px solid rgba(148,92,210,.18)",color:"rgba(148,92,210,.65)",fontFamily:"'Outfit',sans-serif",fontSize:9,letterSpacing:"0.18em",textTransform:"uppercase",cursor:"pointer",borderRadius:2}}>Simulate live chat</button>
+              <button onClick={simChat} style={{width:"100%",padding:8,marginTop:10,background:"rgba(148,92,210,.07)",border:"1px solid rgba(148,92,210,.18)",color:"rgba(148,92,210,.65)",fontFamily:"'Outfit',sans-serif",fontSize:10,letterSpacing:"0.18em",textTransform:"uppercase",cursor:"pointer",borderRadius:2}}>Simulate live chat</button>
             </div>
           )}
           {tab==="queue" && (
