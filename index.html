@@ -275,147 +275,151 @@ function triggerEffect(fx,tier){
   }
 }
 
-/* ── AMBIENT AUDIO ENGINE ── */
+/* ── MEDITATION AUDIO ENGINE ── */
 function createAmbience(){
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(!AC) return null;
+  const ctx = new AC();
   const master = ctx.createGain();
   master.gain.setValueAtTime(0, ctx.currentTime);
-  master.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 6);
+  master.gain.linearRampToValueAtTime(0.22, ctx.currentTime + 8);
   master.connect(ctx.destination);
 
-  // Deep space drone — very low sine wave
-  function drone(freq, gainVal, detune=0){
+  // Singing bowl simulation — strike + long decay ring
+  function bowl(freq, delay, gainVal){
+    setTimeout(()=>{
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const g = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      osc1.type = "sine"; osc2.type = "sine";
+      osc1.frequency.value = freq;
+      osc2.frequency.value = freq * 1.0015; // slight detune for beating
+      filter.type = "bandpass";
+      filter.frequency.value = freq;
+      filter.Q.value = 12;
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(gainVal, ctx.currentTime + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 18);
+      osc1.connect(filter); osc2.connect(filter);
+      filter.connect(g); g.connect(master);
+      osc1.start(); osc2.start();
+      osc1.stop(ctx.currentTime + 20);
+      osc2.stop(ctx.currentTime + 20);
+    }, delay);
+  }
+
+  // Deep space drone layer
+  function drone(freq, gainVal){
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
     const filter = ctx.createBiquadFilter();
+    const lfo = ctx.createOscillator();
+    const lfoG = ctx.createGain();
     osc.type = "sine";
     osc.frequency.value = freq;
-    osc.detune.value = detune;
     filter.type = "lowpass";
-    filter.frequency.value = 400;
+    filter.frequency.value = 300;
+    lfo.frequency.value = 0.07;
+    lfoG.gain.value = freq * 0.008;
     g.gain.value = gainVal;
-    osc.connect(filter);
-    filter.connect(g);
-    g.connect(master);
-    osc.start();
-    // Slow drift
-    const drift = ctx.createOscillator();
-    const driftGain = ctx.createGain();
-    drift.frequency.value = 0.08;
-    driftGain.gain.value = freq * 0.012;
-    drift.connect(driftGain);
-    driftGain.connect(osc.frequency);
-    drift.start();
-    return osc;
-  }
-
-  // Soft pad — slowly evolving chord
-  function pad(freq, gainVal){
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const g = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    osc1.type = "triangle";
-    osc2.type = "sine";
-    osc1.frequency.value = freq;
-    osc2.frequency.value = freq * 1.003;
-    filter.type = "lowpass";
-    filter.frequency.value = 800;
-    filter.Q.value = 2;
-    lfo.frequency.value = 0.12;
-    lfoGain.gain.value = 8;
-    g.gain.value = gainVal;
-    lfo.connect(lfoGain);
-    lfoGain.connect(filter.frequency);
-    osc1.connect(filter);
-    osc2.connect(filter);
-    filter.connect(g);
-    g.connect(master);
-    osc1.start(); osc2.start(); lfo.start();
-    return [osc1, osc2];
-  }
-
-  // Soft shimmer — high frequency gentle sparkle
-  function shimmer(){
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    osc.type = "sine";
-    osc.frequency.value = 528;
-    filter.type = "bandpass";
-    filter.frequency.value = 1200;
-    filter.Q.value = 8;
-    g.gain.value = 0.04;
-    // Slow pulse
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.05;
-    lfoGain.gain.value = 0.03;
-    lfo.connect(lfoGain);
-    lfoGain.connect(g.gain);
-    osc.connect(filter);
-    filter.connect(g);
-    g.connect(master);
+    lfo.connect(lfoG); lfoG.connect(osc.frequency);
+    osc.connect(filter); filter.connect(g); g.connect(master);
     osc.start(); lfo.start();
     return osc;
   }
 
-  // Soft noise wash — like wind through space
+  // Soft piano-like tone — triangle wave with fast decay
+  function piano(freq, delay, gainVal){
+    setTimeout(()=>{
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      filter.type = "lowpass";
+      filter.frequency.value = freq * 3;
+      g.gain.setValueAtTime(0, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(gainVal, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 6);
+      osc.connect(filter); filter.connect(g); g.connect(master);
+      osc.start();
+      osc.stop(ctx.currentTime + 7);
+    }, delay);
+  }
+
+  // Noise wash — soft background texture
   function noiseWash(){
-    const bufferSize = ctx.sampleRate * 3;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for(let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1)*0.08;
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    const filter = ctx.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 180;
-    filter.Q.value = 0.5;
-    const g = ctx.createGain();
-    g.gain.value = 0.12;
-    source.connect(filter);
-    filter.connect(g);
-    g.connect(master);
-    source.start();
-    return source;
+    const dur = ctx.sampleRate * 4;
+    const buf = ctx.createBuffer(1, dur, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<dur;i++) data[i]=(Math.random()*2-1)*0.06;
+    const src2 = ctx.createBufferSource();
+    src2.buffer = buf; src2.loop = true;
+    const f1 = ctx.createBiquadFilter();
+    const f2 = ctx.createBiquadFilter();
+    f1.type = "highpass"; f1.frequency.value = 80;
+    f2.type = "lowpass"; f2.frequency.value = 280;
+    const g = ctx.createGain(); g.gain.value = 0.08;
+    src2.connect(f1); f1.connect(f2); f2.connect(g); g.connect(master);
+    src2.start();
+    return src2;
   }
 
   // Build the soundscape
-  drone(40, 0.5);        // sub bass
-  drone(80, 0.3, 3);     // bass layer
-  drone(120, 0.15, -2);  // low mid
-  pad(160, 0.08);        // soft pad A
-  pad(240, 0.06);        // soft pad B (fifth)
-  pad(200, 0.04);        // soft pad C (third)
-  shimmer();             // high shimmer
-  noiseWash();           // space wash
+  // Continuous drones — deep foundation
+  drone(36, 0.5);
+  drone(54, 0.25);
+  drone(72, 0.12);
+  noiseWash();
 
-  return { ctx, master };
+  // Singing bowls — Tibetan scale (C, E, G, B, D)
+  // They repeat on a long cycle so it never sounds looped
+  function bowlCycle(){
+    const notes = [
+      {f:130.8,g:0.4,d:0},     // C3
+      {f:164.8,g:0.3,d:3200},  // E3
+      {f:196.0,g:0.35,d:7500}, // G3
+      {f:246.9,g:0.25,d:13000},// B3
+      {f:293.7,g:0.28,d:19000},// D4
+      {f:261.6,g:0.3,d:27000}, // C4
+      {f:130.8,g:0.2,d:36000}, // C3 again - very soft
+    ];
+    notes.forEach(n=>bowl(n.f,n.d,n.g));
+    // Piano melody notes interspersed — pentatonic, meditative
+    const melody = [
+      {f:261.6,d:1000,g:0.12},
+      {f:293.7,d:5000,g:0.10},
+      {f:329.6,d:10000,g:0.11},
+      {f:261.6,d:16000,g:0.09},
+      {f:246.9,d:22000,g:0.10},
+      {f:220.0,d:30000,g:0.08},
+    ];
+    melody.forEach(m=>piano(m.f,m.d,m.g));
+  }
+  bowlCycle();
+  // Repeat every 45 seconds so it runs for hours without looping
+  const cycleTimer = setInterval(bowlCycle, 45000);
+
+  return { ctx, master, cycleTimer };
 }
 
+let ambienceObj = null;
 let ambienceStarted = false;
-let ambienceCtx = null;
 
 function startAmbience(){
   if(ambienceStarted) return;
   ambienceStarted = true;
-  try { ambienceCtx = createAmbience(); } catch(e){ console.log("Audio unavailable"); }
+  try{ ambienceObj = createAmbience(); }catch(e){ console.log("Audio error:", e); }
 }
 
-// Fade ambience down during message, back up after
 function fadeAmbience(toGain, duration){
-  if(!ambienceCtx) return;
-  const now = ambienceCtx.ctx.currentTime;
-  ambienceCtx.master.gain.cancelScheduledValues(now);
-  ambienceCtx.master.gain.setValueAtTime(ambienceCtx.master.gain.value, now);
-  ambienceCtx.master.gain.linearRampToValueAtTime(toGain, now + duration);
+  if(!ambienceObj || !ambienceObj.ctx) return;
+  const now = ambienceObj.ctx.currentTime;
+  ambienceObj.master.gain.cancelScheduledValues(now);
+  ambienceObj.master.gain.setValueAtTime(ambienceObj.master.gain.value, now);
+  ambienceObj.master.gain.linearRampToValueAtTime(toGain, now + duration);
 }
-
-window._fadeAmbience = fadeAmbience;
 
 function App(){
   const bgRef=useRef(null),soulRef=useRef(null),fxRef=useRef(null);
@@ -436,6 +440,10 @@ function App(){
   const [nudgeOn,setNudgeOn]=useState(false);
   const [liveTitleIdx,setLiveTitleIdx]=useState(0);
   const [titleVisible,setTitleVisible]=useState(true);
+  const [questionCount,setQuestionCount]=useState(0);
+  const [currentViewer,setCurrentViewer]=useState("");
+  const [spherePulse,setSpherePulse]=useState(false);
+  const [viewerFade,setViewerFade]=useState(false);
   useBgCanvas(bgRef);useSoulCanvas(soulRef,alphaRef,modeRef,sTRef);useFxCanvas(fxRef,fxState);
   const fadeSoul=useCallback((to,dur=700)=>new Promise(res=>{
     const from=alphaRef.current,t0=performance.now();
@@ -459,6 +467,12 @@ function App(){
     const soulTarget={rose:"rose",star:"star",galaxy:"galaxy",none:"idle"}[tier]||"idle";
     const holdTime=tier==="galaxy"?6500:tier==="star"?5200:tier==="rose"?4600:3600;
     fadeAmbience(0.06, 2);
+    setQuestionCount(prev=>prev+1);
+    if(item.viewer){
+      setViewerFade(false);
+      setTimeout(()=>{setCurrentViewer(item.viewer);setViewerFade(true);},200);
+    }
+    if(item.gifted){setSpherePulse(true);setTimeout(()=>setSpherePulse(false),2000);}
     return fadeSoul(0,600)
       .then(()=>{setIdle(false);modeRef.current=soulTarget;return wait(300);})
       .then(()=>{if(item.gifted)triggerEffect(fxState.current,tier);setToastVisible(true);return wait(700);})
@@ -487,7 +501,7 @@ function App(){
       .then(()=>{setMsgFading(true);setGiftBadge(null);return wait(1000);})
       .then(()=>{
         setMsgVisible(false);setMsgFading(false);setUnsentText("");setReplyText("");setDivVisible(false);
-        modeRef.current="idle";setIdle(true);fadeAmbience(0.18,3);return fadeSoul(1,900);
+        modeRef.current="idle";setIdle(true);fadeAmbience(0.18,3);setCurrentViewer("");setViewerFade(false);return fadeSoul(1,900);
       });
   },[fadeSoul,typewrite]);
   const next=useCallback(()=>{
@@ -495,9 +509,9 @@ function App(){
     if(!item){playing.current=false;startNudge();return;}
     playing.current=true;stopNudge();display(item).then(next);
   },[display,startNudge,stopNudge]);
-  const enqueue=useCallback((text,gifted,level)=>{
+  const enqueue=useCallback((text,gifted,level,viewer)=>{
     if(!text||typeof text!=="string")return;
-    const item={text:text.trim(),gifted:gifted||false,level:level||"none"};
+    const item={text:text.trim(),gifted:gifted||false,level:level||"none",viewer:viewer||""};
     if(gifted)priQ.current.push(item);else freeQ.current.push(item);
     if(!playing.current)next();
   },[next]);
@@ -535,7 +549,7 @@ function App(){
           const gifted=pg&&(Date.now()-pg.ts)<30000;
           const level=gifted?pg.tier:"none";
           if(gifted)delete pendingGifts.current[d.user];
-          enqueue(d.text,gifted,level);
+          enqueue(d.text,gifted,level,d.displayName||d.user||"");
         } else if(d.type==="gift"){
           pendingGifts.current[d.user]={tier:d.tier,ts:Date.now()};
         }
@@ -558,11 +572,51 @@ function App(){
         .td1{animation:tp 1.2s ease-in-out infinite}
         .td2{animation:tp 1.2s ease-in-out .2s infinite}
         .td3{animation:tp 1.2s ease-in-out .4s infinite}
+        @keyframes sphereRing{from{transform:scale(0.8);opacity:0.8}to{transform:scale(2.5);opacity:0}}
+        @keyframes counterPop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
       `}</style>
       <canvas ref={bgRef} style={{position:"fixed",inset:0,zIndex:0}}/>
       <canvas ref={soulRef} style={{position:"fixed",inset:0,zIndex:2,pointerEvents:"none"}}/>
       <canvas ref={fxRef} style={{position:"fixed",inset:0,zIndex:4,pointerEvents:"none"}}/>
       <div style={{position:"fixed",inset:0,zIndex:3,pointerEvents:"none",background:"radial-gradient(ellipse at center,transparent 20%,rgba(3,1,12,.45) 60%,rgba(3,1,12,.97) 100%)"}}/>
+      {/* QUESTION COUNTER — top left */}
+      <div style={{position:"fixed",top:"4%",left:"5%",zIndex:8,
+        display:"flex",flexDirection:"column",alignItems:"flex-start",gap:2}}>
+        <div style={{fontSize:"clamp(8px,1.5vmin,11px)",letterSpacing:"0.28em",
+          textTransform:"uppercase",color:"rgba(246,238,255,0.22)",fontWeight:300}}>questions asked</div>
+        <div style={{fontSize:"clamp(22px,5vmin,42px)",fontWeight:200,
+          color:"rgba(246,238,255,0.7)",lineHeight:1,
+          textShadow:"0 0 20px rgba(188,162,255,0.3)"}}>
+          {String(questionCount).padStart(2,"0")}
+        </div>
+      </div>
+
+      {/* VIEWER NAME — bottom, fades in when message shows */}
+      {currentViewer&&(
+        <div style={{position:"fixed",bottom:"18%",left:"50%",transform:"translateX(-50%)",
+          zIndex:8,textAlign:"center",
+          opacity:viewerFade?1:0,transition:"opacity 0.8s ease"}}>
+          <div style={{fontSize:"clamp(9px,1.6vmin,12px)",letterSpacing:"0.3em",
+            textTransform:"uppercase",color:"rgba(218,108,130,0.6)",fontWeight:300,marginBottom:3}}>
+            from
+          </div>
+          <div style={{fontSize:"clamp(12px,2.2vmin,18px)",fontWeight:200,
+            letterSpacing:"0.15em",color:"rgba(246,238,255,0.55)"}}>
+            @{currentViewer}
+          </div>
+        </div>
+      )}
+
+      {/* SPHERE PULSE RING — appears on gift */}
+      {spherePulse&&(
+        <div style={{position:"fixed",inset:0,zIndex:7,pointerEvents:"none",
+          display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{width:"40vmin",height:"40vmin",borderRadius:"50%",
+            border:"1px solid rgba(220,185,100,0.6)",
+            animation:"sphereRing 1.8s ease-out forwards"}}/>
+        </div>
+      )}
+
       {idle&&(
         <div style={{position:"fixed",inset:0,zIndex:5,pointerEvents:"none"}}>
           <div style={{position:"absolute",top:"28%",left:"50%",width:"88%",textAlign:"center",fontSize:"clamp(22px,5vmin,52px)",fontWeight:300,letterSpacing:"0.03em",lineHeight:1.48,color:"rgba(246,238,255,.88)",animation:"fadeIn 1.8s ease .8s both",opacity:titleVisible?1:0,transition:"opacity 0.8s ease"}}>
@@ -572,8 +626,13 @@ function App(){
               {LIVE_SUBTITLES[liveTitleIdx]}
             </span>
           </div>
-          <div style={{position:"absolute",bottom:"6%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(11px,2vmin,16px)",fontWeight:300,letterSpacing:"0.2em",textTransform:"uppercase",color:"rgba(246,238,255,.18)",whiteSpace:"nowrap",animation:"fadeUp 1.5s ease 2.2s both"}}>
-            type <span style={{color:"rgba(218,108,130,.55)"}}>♥</span> + your message in chat
+          <div style={{position:"absolute",bottom:"6%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(11px,2vmin,16px)",fontWeight:300,letterSpacing:"0.2em",textTransform:"uppercase",color:"rgba(246,238,255,.18)",whiteSpace:"nowrap",animation:"fadeUp 1.5s ease 2.2s both",textAlign:"center"}}>
+            type <span style={{color:"rgba(218,108,130,.55)"}}>♥</span> + your question in chat
+            {(freeQ.current.length+priQ.current.length)>0&&(
+              <div style={{fontSize:"clamp(9px,1.4vmin,11px)",color:"rgba(220,185,100,0.45)",marginTop:4,letterSpacing:"0.2em"}}>
+                {freeQ.current.length+priQ.current.length} question{freeQ.current.length+priQ.current.length!==1?"s":""} waiting
+              </div>
+            )}
           </div>
           <div style={{position:"absolute",bottom:"12%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(10px,1.8vmin,14px)",letterSpacing:"0.18em",textTransform:"uppercase",whiteSpace:"nowrap",transition:"opacity 1.2s ease",opacity:nudgeOn?0.42:0,color:"rgba(220,185,100,1)"}}>
             ✦ {nudgeText}
