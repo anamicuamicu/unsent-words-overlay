@@ -18,32 +18,38 @@ html,body{width:100%;height:100%;overflow:hidden;background:#03010c}
 const { useState, useEffect, useRef, useCallback } = React;
 const BRIDGE_URL = "wss://unsent-words-bridge.onrender.com";
 const FALLBACK_POOL = [
-  "I should have said this while I still could.",
-  "There were so many times I almost reached out.",
-  "You deserved better than the silence I left you with.",
-  "I was afraid of what you might actually say back.",
-  "Some of what happened was my fault too.",
-  "By the time I was ready, it was already too late.",
-  "You meant more to me than I ever let you know.",
-  "I kept waiting for a moment that never came.",
-  "Part of me never really left that last conversation.",
-  "I still catch myself about to tell you things.",
-  "Some things just get carried quietly for a long time.",
-  "We were both trying, just in different directions.",
-  "It ended before either of us meant it to.",
-  "I wonder about you more than you probably know.",
-  "I just didn't have the words when they would have mattered.",
-  "There was never a clean way to say any of it.",
-  "I held on to things I should have let go of sooner.",
-  "Missing someone and letting them go are not the same thing.",
-  "There is a version of this where I answered differently.",
-  "I moved on, but not the way I expected to.",
+  "You always were. The ones who couldn't see it simply weren't ready for you.",
+  "I never stopped thinking about you. Not even for a day.",
+  "I didn't want to leave. I just didn't know how to stay.",
+  "You didn't need to say it. I always knew.",
+  "So am I. For everything I left unsaid too.",
+  "More than I ever found the words for, and that is the truth.",
+  "You were the best thing I didn't know how to hold onto.",
+  "I heard you. I hear you still. Every single word.",
+  "You were never too much. You were just too much for the wrong people.",
+  "I would choose you again. In every version of this.",
+  "You were loved in ways I never knew how to show.",
+  "Letting go was the hardest thing I ever did. It didn't mean I stopped.",
+  "You were enough. You have always been enough.",
+  "I thought about reaching out a thousand times. I was afraid too.",
+  "The silence wasn't emptiness. It was everything I didn't know how to say.",
+  "You deserved better. I know that now.",
+  "I carried you with me longer than you know.",
+  "Some goodbyes don't mean forever. This one never did.",
+  "You were seen. Even when I made you feel invisible.",
+  "I'm proud of you. I should have said it when it mattered.",
 ];
 const NUDGE_MSGS = [
   "send a gift to skip the line",
   "bigger gift, bigger moment",
   "gift to be featured first",
   "let the universe carry your words",
+];
+
+// Alternating live titles (shown in idle hint area)
+const LIVE_TITLES = [
+  "every unsent word finds its way here. type ♥ + yours",
+  "ask the universe the message you never sent ♥",
 ];
 function wait(ms){return new Promise(r=>setTimeout(r,ms));}
 function getFallbackReply(recent){
@@ -52,7 +58,7 @@ function getFallbackReply(recent){
   return pool[Math.floor(Math.random()*pool.length)];
 }
 function generateReply(message){
-  const sys="You are the voice of the person who never received this message. Someone is writing something they never got to say to an ex, a lost friend, a parent, someone who is gone. Write what that person would honestly say back, if they could. Respond in exactly one sentence. Maximum 20 words. Write like a real person. Not poetic. Not therapeutic. Not a chatbot. Vary the emotional register: sometimes regretful, sometimes matter-of-fact, sometimes quietly honest, sometimes unexpectedly direct. Do not start with: I knew, I think, I understand, or I feel. Do not use the word closure. Do not ask a question. Just respond. Return only the sentence. No quotes, no extra text.";
+  const sys="You are the voice of the person, place, or feeling this message was sent to. Someone is sending you an unsent message — maybe to a lost love, a parent, a friend, themselves, or something they miss. Read their message carefully and respond DIRECTLY to exactly what they said. If they ask a question, answer it. If they express pain, acknowledge it specifically. If they say sorry, respond to that apology. Your reply must feel like it comes from the specific person or energy they are speaking to. It should be warm, poetic, and healing — like the answer they always needed to hear. Write exactly one sentence or two short sentences. Maximum 25 words total. Do not be vague or generic. Do not use words like: closure, journey, universe, cosmos, heal, path. No questions. Return only the reply. No quotes, no extra text.";
   return fetch("https://api.anthropic.com/v1/messages",{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:80,system:sys,messages:[{role:"user",content:message}]})
@@ -220,6 +226,7 @@ function App(){
   const [toastVisible,setToastVisible]=useState(false);
   const [nudgeText,setNudgeText]=useState("");
   const [nudgeOn,setNudgeOn]=useState(false);
+  const [liveTitleIdx,setLiveTitleIdx]=useState(0);
   useBgCanvas(bgRef);useSoulCanvas(soulRef,alphaRef,modeRef,sTRef);useFxCanvas(fxRef,fxState);
   const fadeSoul=useCallback((to,dur=700)=>new Promise(res=>{
     const from=alphaRef.current,t0=performance.now();
@@ -236,6 +243,7 @@ function App(){
     stopNudge();let idx=0;
     const show=()=>{setNudgeOn(false);setTimeout(()=>{idx=(idx+1)%NUDGE_MSGS.length;setNudgeText(NUDGE_MSGS[idx]);setNudgeOn(true);setTimeout(()=>setNudgeOn(false),4200);},1000);};
     setTimeout(()=>{setNudgeText(NUDGE_MSGS[0]);setNudgeOn(true);setTimeout(()=>setNudgeOn(false),4200);nudgeTimer.current=setInterval(show,10000);},6000);
+    setLiveTitleIdx(prev=>(prev+1)%LIVE_TITLES.length);
   },[stopNudge]);
   const display=useCallback((item)=>{
     const tier=item.gifted?item.level:"none";
@@ -333,7 +341,7 @@ function App(){
             <span style={{display:"inline-block",color:"rgb(218,108,130)",marginLeft:5,verticalAlign:"middle",filter:"drop-shadow(0 0 7px rgba(218,108,130,.75))",animation:"hb 2s ease-in-out infinite"}}>♥</span>
           </div>
           <div style={{position:"absolute",bottom:"6%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(11px,2vmin,16px)",fontWeight:300,letterSpacing:"0.2em",textTransform:"uppercase",color:"rgba(246,238,255,.18)",whiteSpace:"nowrap",animation:"fadeUp 1.5s ease 2.2s both"}}>
-            type <span style={{color:"rgba(218,108,130,.55)"}}>♥</span> followed by your message in chat
+            {LIVE_TITLES[liveTitleIdx]}
           </div>
           <div style={{position:"absolute",bottom:"12%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(10px,1.8vmin,14px)",letterSpacing:"0.18em",textTransform:"uppercase",whiteSpace:"nowrap",transition:"opacity 1.2s ease",opacity:nudgeOn?0.42:0,color:"rgba(220,185,100,1)"}}>
             ✦ {nudgeText}
