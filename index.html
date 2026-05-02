@@ -48,8 +48,13 @@ const NUDGE_MSGS = [
 
 // Alternating live titles (shown in idle hint area)
 const LIVE_TITLES = [
-  "every unsent word finds its way here. type ♥ + yours",
-  "ask the universe the message you never sent ♥",
+  "what would you ask if they could answer?",
+  "what have you always wanted to ask?",
+];
+
+const LIVE_SUBTITLES = [
+  "type ♥ in the chat",
+  "type ♥ + your question",
 ];
 function wait(ms){return new Promise(r=>setTimeout(r,ms));}
 function getFallbackReply(recent){
@@ -209,6 +214,149 @@ function triggerEffect(fx,tier){
     for(let i=0;i<60;i++){const a=Math.random()*Math.PI*2,spd=0.6+Math.random()*4;pt(cx,cy,Math.cos(a)*spd,Math.sin(a)*spd,0.6,0.6+Math.random()*2.2,38+Math.random()*18,62,76,0.005);}
   }
 }
+
+/* ── AMBIENT AUDIO ENGINE ── */
+function createAmbience(){
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0, ctx.currentTime);
+  master.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 6);
+  master.connect(ctx.destination);
+
+  // Deep space drone — very low sine wave
+  function drone(freq, gainVal, detune=0){
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    osc.detune.value = detune;
+    filter.type = "lowpass";
+    filter.frequency.value = 400;
+    g.gain.value = gainVal;
+    osc.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    osc.start();
+    // Slow drift
+    const drift = ctx.createOscillator();
+    const driftGain = ctx.createGain();
+    drift.frequency.value = 0.08;
+    driftGain.gain.value = freq * 0.012;
+    drift.connect(driftGain);
+    driftGain.connect(osc.frequency);
+    drift.start();
+    return osc;
+  }
+
+  // Soft pad — slowly evolving chord
+  function pad(freq, gainVal){
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const g = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    osc1.type = "triangle";
+    osc2.type = "sine";
+    osc1.frequency.value = freq;
+    osc2.frequency.value = freq * 1.003;
+    filter.type = "lowpass";
+    filter.frequency.value = 800;
+    filter.Q.value = 2;
+    lfo.frequency.value = 0.12;
+    lfoGain.gain.value = 8;
+    g.gain.value = gainVal;
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    osc1.start(); osc2.start(); lfo.start();
+    return [osc1, osc2];
+  }
+
+  // Soft shimmer — high frequency gentle sparkle
+  function shimmer(){
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    osc.type = "sine";
+    osc.frequency.value = 528;
+    filter.type = "bandpass";
+    filter.frequency.value = 1200;
+    filter.Q.value = 8;
+    g.gain.value = 0.04;
+    // Slow pulse
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    lfo.frequency.value = 0.05;
+    lfoGain.gain.value = 0.03;
+    lfo.connect(lfoGain);
+    lfoGain.connect(g.gain);
+    osc.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    osc.start(); lfo.start();
+    return osc;
+  }
+
+  // Soft noise wash — like wind through space
+  function noiseWash(){
+    const bufferSize = ctx.sampleRate * 3;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<bufferSize;i++) data[i] = (Math.random()*2-1)*0.08;
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 180;
+    filter.Q.value = 0.5;
+    const g = ctx.createGain();
+    g.gain.value = 0.12;
+    source.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    source.start();
+    return source;
+  }
+
+  // Build the soundscape
+  drone(40, 0.5);        // sub bass
+  drone(80, 0.3, 3);     // bass layer
+  drone(120, 0.15, -2);  // low mid
+  pad(160, 0.08);        // soft pad A
+  pad(240, 0.06);        // soft pad B (fifth)
+  pad(200, 0.04);        // soft pad C (third)
+  shimmer();             // high shimmer
+  noiseWash();           // space wash
+
+  return { ctx, master };
+}
+
+let ambienceStarted = false;
+let ambienceCtx = null;
+
+function startAmbience(){
+  if(ambienceStarted) return;
+  ambienceStarted = true;
+  try { ambienceCtx = createAmbience(); } catch(e){ console.log("Audio unavailable"); }
+}
+
+// Fade ambience down during message, back up after
+function fadeAmbience(toGain, duration){
+  if(!ambienceCtx) return;
+  const now = ambienceCtx.ctx.currentTime;
+  ambienceCtx.master.gain.cancelScheduledValues(now);
+  ambienceCtx.master.gain.setValueAtTime(ambienceCtx.master.gain.value, now);
+  ambienceCtx.master.gain.linearRampToValueAtTime(toGain, now + duration);
+}
+
+window._fadeAmbience = fadeAmbience;
+
 function App(){
   const bgRef=useRef(null),soulRef=useRef(null),fxRef=useRef(null);
   const alphaRef=useRef(1),modeRef=useRef("idle"),sTRef=useRef(0);
@@ -250,6 +398,7 @@ function App(){
     const tier=item.gifted?item.level:"none";
     const soulTarget={rose:"rose",star:"star",galaxy:"galaxy",none:"idle"}[tier]||"idle";
     const holdTime=tier==="galaxy"?6500:tier==="star"?5200:tier==="rose"?4600:3600;
+    fadeAmbience(0.06, 2);
     return fadeSoul(0,600)
       .then(()=>{setIdle(false);modeRef.current=soulTarget;return wait(300);})
       .then(()=>{if(item.gifted)triggerEffect(fxState.current,tier);setToastVisible(true);return wait(700);})
@@ -277,7 +426,7 @@ function App(){
       .then(()=>{setMsgFading(true);setGiftBadge(null);return wait(1000);})
       .then(()=>{
         setMsgVisible(false);setMsgFading(false);setUnsentText("");setReplyText("");setDivVisible(false);
-        modeRef.current="idle";setIdle(true);return fadeSoul(1,900);
+        modeRef.current="idle";setIdle(true);fadeAmbience(0.18,3);return fadeSoul(1,900);
       });
   },[fadeSoul,typewrite]);
   const next=useCallback(()=>{
@@ -292,6 +441,16 @@ function App(){
     if(!playing.current)next();
   },[next]);
   useEffect(()=>{startNudge();return stopNudge;},[startNudge,stopNudge]);
+
+  useEffect(()=>{
+    // Start audio on first click/touch (browser autoplay policy)
+    const start = ()=>{ startAmbience(); };
+    window.addEventListener("click", start, {once:true});
+    window.addEventListener("touchstart", start, {once:true});
+    // Also try autostart after short delay
+    setTimeout(()=>{ try{ startAmbience(); }catch(e){} }, 1000);
+    return()=>{ window.removeEventListener("click",start); window.removeEventListener("touchstart",start); };
+  },[]);
 
   useEffect(()=>{
     const timer=setInterval(()=>{
@@ -346,10 +505,11 @@ function App(){
       {idle&&(
         <div style={{position:"fixed",inset:0,zIndex:5,pointerEvents:"none"}}>
           <div style={{position:"absolute",top:"28%",left:"50%",width:"88%",textAlign:"center",fontSize:"clamp(22px,5vmin,52px)",fontWeight:300,letterSpacing:"0.03em",lineHeight:1.48,color:"rgba(246,238,255,.88)",animation:"fadeIn 1.8s ease .8s both",opacity:titleVisible?1:0,transition:"opacity 0.8s ease"}}>
-            {liveTitleIdx===0
-              ? <span>every unsent word<br/>finds its way here</span>
-              : <span>ask the universe<br/>the message you never sent</span>}
-            <span style={{display:"inline-block",color:"rgb(218,108,130)",marginLeft:8,verticalAlign:"middle",filter:"drop-shadow(0 0 7px rgba(218,108,130,.75))",animation:"hb 2s ease-in-out infinite"}}>♥</span>
+            {LIVE_TITLES[liveTitleIdx]}
+            <br/>
+            <span style={{fontSize:"clamp(13px,2.8vmin,26px)",fontWeight:200,letterSpacing:"0.08em",color:"rgba(218,108,130,0.8)"}}>
+              {LIVE_SUBTITLES[liveTitleIdx]}
+            </span>
           </div>
           <div style={{position:"absolute",bottom:"6%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(11px,2vmin,16px)",fontWeight:300,letterSpacing:"0.2em",textTransform:"uppercase",color:"rgba(246,238,255,.18)",whiteSpace:"nowrap",animation:"fadeUp 1.5s ease 2.2s both"}}>
             type <span style={{color:"rgba(218,108,130,.55)"}}>♥</span> + your message in chat
