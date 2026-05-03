@@ -43,39 +43,15 @@ const FALLBACK=[
   "You were the best thing I did not know how to hold on to.",
   "I loved you in ways I never found the language for."
 ];
-const EXAMPLE_QUESTIONS = [
-  "am I enough?",
-  "does he still think about me?",
-  "will things get better?",
-  "did they ever love me?",
-  "why do I feel so lost?",
-  "am I on the right path?",
-  "will I find love again?",
-  "why did they leave?",
-  "do I deserve to be happy?",
-  "is it too late for me?",
-  "will I be okay?",
-  "does she miss me?",
-  "why does it still hurt?",
-  "am I making the right choice?",
-  "will someone ever truly love me?",
-];
-const HEARTS=[0x2665,0x2764,0x1F499,0x1F49A,0x1F49B,0x1F49C,0x1F49D,0x1F49E,0x1F49F,0x1F90D,0x1F90E,0x1F9E1];
 
 function wait(ms){return new Promise(r=>setTimeout(r,ms));}
-function hasHeart(t){
-  if(!t)return false;
-  if(t.indexOf('\u2665')!==-1||t.indexOf('\u2764')!==-1)return true;
-  for(let i=0;i<t.length;i++){const c=t.codePointAt(i);if(HEARTS.indexOf(c)!==-1)return true;}
-  return false;
-}
 function getFallback(recent){
   const pool=FALLBACK.filter(r=>!recent.includes(r));
   const p=pool.length>0?pool:FALLBACK;
   return p[Math.floor(Math.random()*p.length)];
 }
 function genReply(msg){
-  const sys="You are a calm, wise, deeply caring presence answering questions people are afraid to ask out loud. Someone is asking something they have carried for a long time. Your job is to answer them directly, clearly, and powerfully. Rules: Always directly answer the question being asked. Your answer must clearly relate to the intent of the question. Do not generate random abstract or unrelated phrases. Keep answers to 1 to 2 sentences max. Tone: calm, wise, slightly poetic but still clear and understandable. Avoid vague contradictions or wordplay that breaks meaning. Speak as if you are reassuring or gently guiding the person. Make the answer feel powerful and quotable, like something worth remembering. Examples: Q: Am I enough? A: You have always been enough, even in the moments when you doubted it most. Q: Will I succeed? A: Yes, if you keep going, your effort will shape the outcome you are hoping for. Q: Why do I feel lost? A: You are in a transition not a failure, this feeling is part of finding your direction. Q: Does he love me? A: His actions matter more than your doubts, look at what he consistently shows you. Q: where are you now? A: I am closer than you think, in the quiet moments when you feel something you cannot name. Q: do you miss me? A: Every single day, more than words have ever been able to hold. Return only the reply. No quotes, no labels, no extra text.";
+  const sys="You are a calm, wise, deeply caring presence answering questions people are afraid to ask out loud. Someone is asking something they have carried for a long time. Rules: Always directly answer the question being asked. Your answer must clearly relate to the intent of the question. Keep answers to 1 to 2 sentences max. Tone: calm, wise, slightly poetic but still clear and understandable. Speak as if you are reassuring or gently guiding the person. Make the answer feel powerful and quotable. Examples: Q: Am I enough? A: You have always been enough, even in the moments when you doubted it most. Q: Will I succeed? A: Yes, if you keep going, your effort will shape the outcome you are hoping for. Q: Why do I feel lost? A: You are in a transition not a failure, this feeling is part of finding your direction. Q: where are you now? A: I am closer than you think, in the quiet moments when you feel something you cannot name. Q: do you miss me? A: Every single day, more than words have ever been able to hold. Return only the reply. No quotes, no labels, no extra text.";
   return fetch("https://api.anthropic.com/v1/messages",{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:80,system:sys,messages:[{role:"user",content:msg}]})
@@ -88,7 +64,7 @@ function fixTypos(text){
   return fetch("https://api.anthropic.com/v1/messages",{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:60,
-      system:"Fix spelling mistakes and typos only. Keep the exact meaning, tone, and words. Return only the corrected text, no explanation.",
+      system:"Fix spelling mistakes and typos only. Keep the exact meaning and words. Return only the corrected text, no explanation.",
       messages:[{role:"user",content:text}]})
   }).then(r=>r.json()).then(d=>{
     if(d.content&&d.content[0]&&d.content[0].text)return d.content[0].text.trim();
@@ -105,8 +81,7 @@ function useBgCanvas(ref){
     function resize(){
       W=document.documentElement.clientWidth||window.innerWidth;
       H=document.documentElement.clientHeight||window.innerHeight;
-      const d=dpr();
-      c.width=Math.round(W*d);c.height=Math.round(H*d);
+      const d=dpr();c.width=Math.round(W*d);c.height=Math.round(H*d);
       c.style.width=W+"px";c.style.height=H+"px";
       ctx.setTransform(1,0,0,1,0,0);ctx.scale(d,d);
       stars=[];nebulas=[];
@@ -127,7 +102,8 @@ function useBgCanvas(ref){
     function spawnComet(){
       comets.push({x:Math.random()*W*0.75,y:Math.random()*H*0.45,
         len:90+Math.random()*130,spd:3+Math.random()*4,alpha:0.6+Math.random()*0.2,
-        angle:Math.PI/5+(Math.random()-0.5)*0.3,h:Math.random()<0.5?315+Math.random()*25:255+Math.random()*35});
+        angle:Math.PI/5+(Math.random()-0.5)*0.3,
+        h:Math.random()<0.5?315+Math.random()*25:255+Math.random()*35});
     }
     function draw(){
       ctx.clearRect(0,0,W,H);
@@ -161,6 +137,7 @@ function useBgCanvas(ref){
     return()=>{cancelAnimationFrame(raf);clearInterval(ct);window.removeEventListener("resize",resize);};
   },[ref]);
 }
+
 function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
   useEffect(()=>{
     const c=ref.current;if(!c)return;
@@ -170,30 +147,35 @@ function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
     function resize(){
       const W=document.documentElement.clientWidth||window.innerWidth;
       const H=document.documentElement.clientHeight||window.innerHeight;
-      const d=dpr();
-      c.style.width=W+"px";c.style.height=H+"px";
+      const d=dpr();c.style.width=W+"px";c.style.height=H+"px";
       c.width=Math.round(W*d);c.height=Math.round(H*d);
       ctx.setTransform(1,0,0,1,0,0);ctx.scale(d,d);
     }
-    function build(){pts=[];for(let r=0;r<=RINGS;r++){const phi=(r/RINGS)*Math.PI;for(let p=0;p<PPR;p++)pts.push({phi,theta:(p/PPR)*Math.PI*2,bp:Math.random()*Math.PI*2,bs:0.015+Math.random()*0.03,sz:0.6+Math.random()*1.3});}}
+    function build(){
+      pts=[];
+      for(let r=0;r<=RINGS;r++){const phi=(r/RINGS)*Math.PI;
+        for(let p=0;p<PPR;p++)pts.push({phi,theta:(p/PPR)*Math.PI*2,bp:Math.random()*Math.PI*2,bs:0.015+Math.random()*0.03,sz:0.6+Math.random()*1.3});}
+    }
     function rot(phi,theta,ry,rx,R){
       let x=R*Math.sin(phi)*Math.cos(theta),y=R*Math.cos(phi),z=R*Math.sin(phi)*Math.sin(theta);
       const x1=x*Math.cos(ry)+z*Math.sin(ry),z1=-x*Math.sin(ry)+z*Math.cos(ry);x=x1;z=z1;
-      const y2=y*Math.cos(rx)-z*Math.sin(rx),z2=y*Math.sin(rx)+z*Math.cos(rx);return{x,y:y2,z:z2};
+      const y2=y*Math.cos(rx)-z*Math.sin(rx),z2=y*Math.sin(rx)+z*Math.cos(rx);
+      return{x,y:y2,z:z2};
     }
     function draw(){
       const W=c.width/(window.devicePixelRatio||1),H=c.height/(window.devicePixelRatio||1);
       ctx.clearRect(0,0,W,H);raf=requestAnimationFrame(draw);
       const al=alphaRef.current;if(al<=0.01)return;
       sTRef.current+=0.0035;mT+=0.004;
-      const sT=sTRef.current,mode=modeRef.current,cx=W/2,cy=H/2+H*0.09,base=Math.min(W,H)*0.19;
+      const sT=sTRef.current,mode=modeRef.current;
+      const cx=W/2,cy=H/2+H*0.09;
+      const base=Math.min(W,H)*0.19;
       let R,ry,rx,h1,rings,ppr,la,dm,hs,ha,ca;
       if(mode==="galaxy"){R=base*(1.5+Math.sin(mT*1.8)*0.12);ry=sT*1.8;rx=Math.sin(sT*0.7)*0.4;h1=(mT*60)%360;la=0.20;dm=2.0;hs=4.0;ha=0.14;ca=0.25;rings=14;ppr=24;}
       else if(mode==="star"){R=base*(1.25+Math.sin(mT*1.2)*0.09);ry=sT*1.3;rx=Math.sin(sT*0.45)*0.3;h1=275+Math.sin(mT*0.7)*35;la=0.16;dm=1.7;hs=3.5;ha=0.11;ca=0.18;rings=11;ppr=20;}
       else if(mode==="rose"){R=base*(1.1+Math.sin(mT*0.85)*0.06);ry=sT*0.85;rx=Math.sin(sT*0.3)*0.22;h1=15+Math.sin(mT*0.35)*18;la=0.12;dm=1.5;hs=2.8;ha=0.09;ca=0.15;rings=10;ppr=18;}
       else{R=base*(1+Math.sin(sT*0.85)*0.032);ry=sT*0.5;rx=Math.sin(sT*0.26)*0.2;h1=(sT*12)%360;la=0.09;dm=1.4;hs=3.2;ha=0.10;ca=0.16;rings=RINGS;ppr=PPR;}
       ctx.save();ctx.globalAlpha=al;
-      // Extra deep background glow for pop
       let deepG=ctx.createRadialGradient(cx,cy,0,cx,cy,R*hs*1.6);
       deepG.addColorStop(0,`hsla(${h1},55%,55%,${ha*0.6})`);
       deepG.addColorStop(0.4,`hsla(${(h1+40)%360},45%,40%,${ha*0.3})`);
@@ -221,9 +203,13 @@ function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
         const p3=rot(sp.phi,sp.theta,ry,rx,R),d2=(p3.z+R)/(2*R),bl=0.2+0.8*((Math.sin(sp.bp)+1)/2),a2=d2*bl*0.8;
         if(a2<0.02)return;
         const dx=cx+p3.x,dy=cy-p3.y,dh=mode==="galaxy"?(h1+sp.phi*55+sp.theta*12)%360:(255+sp.phi*42+sp.theta*7)%360,sz=sp.sz*dm;
-        const dg=ctx.createRadialGradient(dx,dy,0,dx,dy,sz*7);dg.addColorStop(0,`hsla(${dh},75%,90%,${a2*0.55})`);dg.addColorStop(0.5,`hsla(${dh},65%,75%,${a2*0.2})`);dg.addColorStop(1,"rgba(3,1,12,0)");
+        const dg=ctx.createRadialGradient(dx,dy,0,dx,dy,sz*7);
+        dg.addColorStop(0,`hsla(${dh},75%,90%,${a2*0.55})`);
+        dg.addColorStop(0.5,`hsla(${dh},65%,75%,${a2*0.2})`);
+        dg.addColorStop(1,"rgba(3,1,12,0)");
         ctx.beginPath();ctx.arc(dx,dy,sz*7,0,Math.PI*2);ctx.fillStyle=dg;ctx.fill();
-        ctx.beginPath();ctx.arc(dx,dy,sz*Math.max(0.4,d2)*1.3,0,Math.PI*2);ctx.fillStyle=`hsla(${dh},80%,95%,${a2})`;ctx.fill();
+        ctx.beginPath();ctx.arc(dx,dy,sz*Math.max(0.4,d2)*1.3,0,Math.PI*2);
+        ctx.fillStyle=`hsla(${dh},80%,95%,${a2})`;ctx.fill();
       });
       ctx.restore();
     }
@@ -231,6 +217,7 @@ function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
     return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);};
   },[ref,alphaRef,modeRef,sTRef]);
 }
+
 function useFxCanvas(ref,fxRef){
   useEffect(()=>{
     const c=ref.current;if(!c)return;const ctx=c.getContext("2d");let raf;
@@ -254,6 +241,7 @@ function useFxCanvas(ref,fxRef){
     return()=>{cancelAnimationFrame(raf);window.removeEventListener("resize",resize);};
   },[ref,fxRef]);
 }
+
 function triggerFx(fx,tier){
   fx.rings=[];fx.pts=[];fx.active=true;
   const cx=window.innerWidth/2,cy=window.innerHeight/2,R=Math.min(window.innerWidth,window.innerHeight);
@@ -275,6 +263,98 @@ function triggerFx(fx,tier){
   }
 }
 
+function App(){
+  const bgRef=useRef(null),soulRef=useRef(null),fxRef=useRef(null);
+  const alphaRef=useRef(1),modeRef=useRef("idle"),sTRef=useRef(0);
+  const fxState=useRef({active:false,rings:[],pts:[]});
+  const recentRef=useRef([]),freeQ=useRef([]),priQ=useRef([]),playing=useRef(false);
+  const nudgeTimer=useRef(null),pendingGifts=useRef({});
+  const [idle,setIdle]=useState(true);
+  const [msgVisible,setMsgVisible]=useState(false);
+  const [msgFading,setMsgFading]=useState(false);
+  const [unsentText,setUnsentText]=useState("");
+  const [replyText,setReplyText]=useState("");
+  const [thinking,setThinking]=useState(false);
+  const [divVisible,setDivVisible]=useState(false);
+  const [giftBadge,setGiftBadge]=useState(null);
+  const [toastVisible,setToastVisible]=useState(false);
+  const [nudgeText,setNudgeText]=useState("");
+  const [nudgeOn,setNudgeOn]=useState(false);
+  const [titleIdx,setTitleIdx]=useState(0);
+  const [titleVis,setTitleVis]=useState(true);
+  const [qCount,setQCount]=useState(0);
+  const [viewer,setViewer]=useState("");
+  const [viewerFade,setViewerFade]=useState(false);
+  const [spherePulse,setSpherePulse]=useState(false);
+  useBgCanvas(bgRef);useSoulCanvas(soulRef,alphaRef,modeRef,sTRef);useFxCanvas(fxRef,fxState);
+  const fadeSoul=useCallback((to,dur=700)=>new Promise(res=>{
+    const from=alphaRef.current,t0=performance.now();
+    function step(now){const t=Math.min((now-t0)/dur,1);alphaRef.current=from+(to-from)*t;if(t<1)requestAnimationFrame(step);else{alphaRef.current=to;res();}}
+    requestAnimationFrame(step);
+  }),[]);
+  const typewrite=useCallback((setter,text,speed)=>new Promise(res=>{
+    if(!text||typeof text!=="string"){setter("");res();return;}
+    const chars=text.split("");let i=0,built="";setter("");
+    const iv=setInterval(()=>{if(i<chars.length){built+=chars[i];i++;setter(built);}else{clearInterval(iv);res();}},speed);
+  }),[]);
+  const stopNudge=useCallback(()=>{if(nudgeTimer.current){clearInterval(nudgeTimer.current);nudgeTimer.current=null;}setNudgeOn(false);},[]);
+  const startNudge=useCallback(()=>{
+    stopNudge();let idx=0;
+    const show=()=>{setNudgeOn(false);setTimeout(()=>{idx=(idx+1)%NUDGE_MSGS.length;setNudgeText(NUDGE_MSGS[idx]);setNudgeOn(true);setTimeout(()=>setNudgeOn(false),4200);},1000);};
+    setTimeout(()=>{setNudgeText(NUDGE_MSGS[0]);setNudgeOn(true);setTimeout(()=>setNudgeOn(false),4200);nudgeTimer.current=setInterval(show,10000);},8000);
+  },[stopNudge]);
+  const display=useCallback((item)=>{
+    const tier=item.gifted?item.level:"none";
+    const soul={rose:"rose",star:"star",galaxy:"galaxy",none:"idle"}[tier]||"idle";
+    const hold=tier==="galaxy"?6500:tier==="star"?5200:tier==="rose"?4600:3600;
+    setQCount(p=>p+1);
+    if(item.viewer){setViewerFade(false);setTimeout(()=>{setViewer(item.viewer);setViewerFade(true);},200);}
+    if(item.gifted){setSpherePulse(true);setTimeout(()=>setSpherePulse(false),2000);}
+    return fadeSoul(0,600)
+      .then(()=>{setIdle(false);modeRef.current=soul;return wait(300);})
+      .then(()=>{if(item.gifted)triggerFx(fxState.current,tier);setToastVisible(true);return wait(700);})
+      .then(()=>{setToastVisible(false);return wait(200);})
+      .then(()=>{
+        setGiftBadge(item.gifted?(tier==="galaxy"?"galaxy moment":tier==="star"?"star featured":"featured"):null);
+        setMsgVisible(true);setDivVisible(false);setReplyText("");setThinking(false);
+        return fixTypos(item.text).then(clean=>typewrite(setUnsentText,clean||item.text,40));
+      })
+      .then(()=>wait(300))
+      .then(()=>{setDivVisible(true);return wait(400);})
+      .then(()=>{
+        setThinking(true);
+        const fb=getFallback(recentRef.current);
+        return genReply(item.text).then(r=>{recentRef.current=[...recentRef.current.slice(-5),r];return r;}).catch(()=>fb);
+      })
+      .then(reply=>{
+        setThinking(false);
+        if(!reply||typeof reply!=="string")reply=getFallback(recentRef.current);
+        return typewrite(setReplyText,reply,50);
+      })
+      .then(()=>wait(hold))
+      .then(()=>{setMsgFading(true);setGiftBadge(null);return wait(1000);})
+      .then(()=>{
+        setMsgVisible(false);setMsgFading(false);setUnsentText("");setReplyText("");setDivVisible(false);
+        modeRef.current="idle";setIdle(true);setViewer("");setViewerFade(false);
+        return fadeSoul(1,900);
+      });
+  },[fadeSoul,typewrite]);
+  const next=useCallback(()=>{
+    const item=priQ.current.length>0?priQ.current.shift():freeQ.current.shift();
+    if(!item){playing.current=false;startNudge();return;}
+    playing.current=true;stopNudge();display(item).then(next);
+  },[display,startNudge,stopNudge]);
+  const enqueue=useCallback((text,gifted,level,v)=>{
+    if(!text||typeof text!=="string")return;
+    const item={text:text.trim(),gifted:gifted||false,level:level||"none",viewer:v||""};
+    if(gifted)priQ.current.push(item);else freeQ.current.push(item);
+    if(!playing.current)next();
+  },[next]);
+  useEffect(()=>{startNudge();return stopNudge;},[startNudge,stopNudge]);
+  useEffect(()=>{
+    const timer=setInterval(()=>{setTitleVis(false);setTimeout(()=>{setTitleIdx(p=>(p+1)%2);setTitleVis(true);},800);},12000);
+    return()=>clearInterval(timer);
+  },[]);
   useEffect(()=>{
     if(!BRIDGE_URL)return;
     let ws,rt;
@@ -290,7 +370,6 @@ function triggerFx(fx,tier){
           const gifted=pg&&(Date.now()-pg.ts)<30000;
           const level=gifted?pg.tier:"none";
           if(gifted)delete pendingGifts.current[d.user];
-          // Filter: min 4 words, not pure emoji/spam
           enqueue(d.text,gifted,level,d.displayName||d.user||"");
         }else if(d.type==="gift"){
           pendingGifts.current[d.user]={tier:d.tier,ts:Date.now()};
@@ -317,30 +396,24 @@ function triggerFx(fx,tier){
       <canvas ref={soulRef} style={{position:"fixed",inset:0,zIndex:2,pointerEvents:"none"}}/>
       <canvas ref={fxRef} style={{position:"fixed",inset:0,zIndex:4,pointerEvents:"none"}}/>
       <div style={{position:"fixed",inset:0,zIndex:3,pointerEvents:"none",background:"radial-gradient(ellipse at center,transparent 20%,rgba(3,1,12,.45) 60%,rgba(3,1,12,.97) 100%)"}}/>
-      {/* question counter */}
       <div style={{position:"fixed",top:"4%",left:"5%",zIndex:8,display:"flex",flexDirection:"column",gap:2}}>
         <div style={{fontSize:"clamp(8px,1.5vmin,11px)",letterSpacing:"0.28em",textTransform:"uppercase",color:"rgba(246,238,255,0.22)",fontWeight:300}}>questions asked</div>
-        <div style={{fontSize:"clamp(20px,4.5vmin,38px)",fontWeight:200,color:"rgba(246,238,255,0.65)",lineHeight:1,textShadow:"0 0 20px rgba(188,162,255,0.25)"}}>{String(qCount).padStart(2,"0")}</div>
+        <div style={{fontSize:"clamp(20px,4.5vmin,38px)",fontWeight:200,color:"rgba(246,238,255,0.65)",lineHeight:1}}>{String(qCount).padStart(2,"0")}</div>
       </div>
-      {/* sphere pulse */}
       {spherePulse&&<div style={{position:"fixed",inset:0,zIndex:7,pointerEvents:"none",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{width:"40vmin",height:"40vmin",borderRadius:"50%",border:"1px solid rgba(220,185,100,0.6)",animation:"sRing 1.8s ease-out forwards"}}/></div>}
-      {/* idle */}
       {idle&&<div style={{position:"fixed",inset:0,zIndex:5,pointerEvents:"none"}}>
-        <div style={{position:"absolute",top:"28%",left:"50%",width:"88%",textAlign:"center",fontSize:"clamp(22px,5vmin,50px)",fontWeight:300,letterSpacing:"0.03em",lineHeight:1.48,color:"rgba(246,238,255,.88)",transform:"translate(-50%,-50%)",opacity:titleVis?1:0,transition:"opacity 0.8s ease"}}>
+        <div style={{position:"absolute",top:"22%",left:"50%",width:"88%",textAlign:"center",fontSize:"clamp(22px,5vmin,50px)",fontWeight:300,letterSpacing:"0.03em",lineHeight:1.48,color:"rgba(246,238,255,.88)",transform:"translateX(-50%)",opacity:titleVis?1:0,transition:"opacity 0.8s ease"}}>
           {LIVE_TITLES[titleIdx]}
           <br/>
           <span style={{fontSize:"clamp(13px,2.8vmin,24px)",fontWeight:200,letterSpacing:"0.06em",color:"rgba(218,108,130,0.8)"}}>{LIVE_SUBTITLES[titleIdx]}</span>
-
         </div>
         <div style={{position:"absolute",bottom:"6%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(11px,2vmin,15px)",fontWeight:300,letterSpacing:"0.18em",textTransform:"uppercase",color:"rgba(246,238,255,.18)",whiteSpace:"nowrap"}}>
-          type your question in the chat below
+          type your question in the chat
         </div>
-
         <div style={{position:"absolute",bottom:"12%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(10px,1.8vmin,13px)",letterSpacing:"0.16em",textTransform:"uppercase",whiteSpace:"nowrap",transition:"opacity 1.2s ease",opacity:nudgeOn?0.42:0,color:"rgba(220,185,100,1)"}}>
-          &diams; {nudgeText}
+          &#10022; {nudgeText}
         </div>
       </div>}
-      {/* stage */}
       <div style={{position:"fixed",inset:0,zIndex:6,display:"flex",alignItems:"center",justifyContent:"center",padding:"5vmin"}}>
         <div style={{width:"100%",maxWidth:"90vmin",textAlign:"center",opacity:msgVisible?(msgFading?0:1):0,transition:"opacity 1s ease"}}>
           {giftBadge&&<div style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:"clamp(10px,1.8vmin,13px)",fontWeight:300,letterSpacing:"0.22em",textTransform:"uppercase",color:"rgba(220,185,100,.72)",marginBottom:"2vmin"}}><div style={{width:4,height:4,borderRadius:"50%",background:"rgb(220,185,100)",boxShadow:"0 0 5px rgb(220,185,100)"}}/>{giftBadge}</div>}
@@ -356,7 +429,6 @@ function triggerFx(fx,tier){
           </div>}
         </div>
       </div>
-      {/* toast */}
       <div style={{position:"fixed",bottom:"4%",left:"50%",transform:`translateX(-50%) translateY(${toastVisible?0:8}px)`,zIndex:20,fontSize:"clamp(9px,1.5vmin,11px)",fontWeight:300,letterSpacing:"0.3em",textTransform:"uppercase",color:"rgba(246,238,255,.22)",opacity:toastVisible?1:0,transition:"opacity .4s,transform .4s"}}>receiving</div>
     </div>
   );
