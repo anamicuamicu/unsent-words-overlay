@@ -19,7 +19,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#03010c;position:fix
 const {useState,useEffect,useRef,useCallback}=React;
 const BRIDGE_URL="wss://unsent-words-bridge.onrender.com";
 const LIVE_TITLES=["what would you ask if they could answer?","what have you always wanted to ask?"];
-const LIVE_SUBTITLES=["type any heart emoji in the chat","type heart emoji + your question"];
+const LIVE_SUBTITLES=["type your question in the chat below","ask your question in the comments"];
 const NUDGE_MSGS=["send a gift to skip the line","bigger gift, bigger moment","gift to be featured first","let the universe carry your words"];
 const FALLBACK=[
   "You always were. The ones who made you doubt that were never ready for you.",
@@ -42,6 +42,23 @@ const FALLBACK=[
   "I still catch myself about to reach out. Some things do not change.",
   "You were the best thing I did not know how to hold on to.",
   "I loved you in ways I never found the language for."
+];
+const EXAMPLE_QUESTIONS = [
+  "am I enough?",
+  "does he still think about me?",
+  "will things get better?",
+  "did they ever love me?",
+  "why do I feel so lost?",
+  "am I on the right path?",
+  "will I find love again?",
+  "why did they leave?",
+  "do I deserve to be happy?",
+  "is it too late for me?",
+  "will I be okay?",
+  "does she miss me?",
+  "why does it still hurt?",
+  "am I making the right choice?",
+  "will someone ever truly love me?",
 ];
 const HEARTS=[0x2665,0x2764,0x1F499,0x1F49A,0x1F49B,0x1F49C,0x1F49D,0x1F49E,0x1F49F,0x1F90D,0x1F90E,0x1F9E1];
 
@@ -169,13 +186,19 @@ function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
       ctx.clearRect(0,0,W,H);raf=requestAnimationFrame(draw);
       const al=alphaRef.current;if(al<=0.01)return;
       sTRef.current+=0.0035;mT+=0.004;
-      const sT=sTRef.current,mode=modeRef.current,cx=W/2,cy=H/2,base=Math.min(W,H)*0.13;
+      const sT=sTRef.current,mode=modeRef.current,cx=W/2,cy=H/2+H*0.09,base=Math.min(W,H)*0.19;
       let R,ry,rx,h1,rings,ppr,la,dm,hs,ha,ca;
-      if(mode==="galaxy"){R=base*(1.5+Math.sin(mT*1.8)*0.1);ry=sT*1.8;rx=Math.sin(sT*0.7)*0.4;h1=(mT*60)%360;la=0.14;dm=1.6;hs=3.2;ha=0.09;ca=0.18;rings=14;ppr=24;}
-      else if(mode==="star"){R=base*(1.25+Math.sin(mT*1.2)*0.07);ry=sT*1.3;rx=Math.sin(sT*0.45)*0.3;h1=275+Math.sin(mT*0.7)*35;la=0.10;dm=1.3;hs=2.5;ha=0.07;ca=0.12;rings=11;ppr=20;}
-      else if(mode==="rose"){R=base*(1.1+Math.sin(mT*0.85)*0.05);ry=sT*0.85;rx=Math.sin(sT*0.3)*0.22;h1=15+Math.sin(mT*0.35)*18;la=0.08;dm=1.1;hs=2.0;ha=0.055;ca=0.09;rings=10;ppr=18;}
-      else{R=base*(1+Math.sin(sT*0.85)*0.025);ry=sT*0.5;rx=Math.sin(sT*0.26)*0.2;h1=(sT*12)%360;la=0.05;dm=1.0;hs=2.4;ha=0.045;ca=0.08;rings=RINGS;ppr=PPR;}
+      if(mode==="galaxy"){R=base*(1.5+Math.sin(mT*1.8)*0.12);ry=sT*1.8;rx=Math.sin(sT*0.7)*0.4;h1=(mT*60)%360;la=0.20;dm=2.0;hs=4.0;ha=0.14;ca=0.25;rings=14;ppr=24;}
+      else if(mode==="star"){R=base*(1.25+Math.sin(mT*1.2)*0.09);ry=sT*1.3;rx=Math.sin(sT*0.45)*0.3;h1=275+Math.sin(mT*0.7)*35;la=0.16;dm=1.7;hs=3.5;ha=0.11;ca=0.18;rings=11;ppr=20;}
+      else if(mode==="rose"){R=base*(1.1+Math.sin(mT*0.85)*0.06);ry=sT*0.85;rx=Math.sin(sT*0.3)*0.22;h1=15+Math.sin(mT*0.35)*18;la=0.12;dm=1.5;hs=2.8;ha=0.09;ca=0.15;rings=10;ppr=18;}
+      else{R=base*(1+Math.sin(sT*0.85)*0.032);ry=sT*0.5;rx=Math.sin(sT*0.26)*0.2;h1=(sT*12)%360;la=0.09;dm=1.4;hs=3.2;ha=0.10;ca=0.16;rings=RINGS;ppr=PPR;}
       ctx.save();ctx.globalAlpha=al;
+      // Extra deep background glow for pop
+      let deepG=ctx.createRadialGradient(cx,cy,0,cx,cy,R*hs*1.6);
+      deepG.addColorStop(0,`hsla(${h1},55%,55%,${ha*0.6})`);
+      deepG.addColorStop(0.4,`hsla(${(h1+40)%360},45%,40%,${ha*0.3})`);
+      deepG.addColorStop(1,"rgba(3,1,12,0)");
+      ctx.beginPath();ctx.arc(cx,cy,R*hs*1.6,0,Math.PI*2);ctx.fillStyle=deepG;ctx.fill();
       let og=ctx.createRadialGradient(cx,cy,R*0.5,cx,cy,R*hs);
       og.addColorStop(0,`hsla(${h1},60%,68%,${ha})`);og.addColorStop(0.6,`hsla(${(h1+60)%360},50%,52%,${ha*0.4})`);og.addColorStop(1,"rgba(3,1,12,0)");
       ctx.beginPath();ctx.arc(cx,cy,R*hs,0,Math.PI*2);ctx.fillStyle=og;ctx.fill();
@@ -186,7 +209,7 @@ function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
         const phi=(r/rings)*Math.PI,rh=mode==="galaxy"?(h1+r*22)%360:mode==="star"?(268+r*14)%360:(258+r*11)%360;
         ctx.beginPath();let first=true,d=0;
         for(let s=0;s<=60;s++){const theta=(s/60)*Math.PI*2,pt=rot(phi,theta,ry,rx,R);d=(pt.z+R)/(2*R);if(first){ctx.moveTo(cx+pt.x,cy-pt.y);first=false;}else ctx.lineTo(cx+pt.x,cy-pt.y);}
-        ctx.strokeStyle=`hsla(${rh},52%,78%,${la+d*0.1})`;ctx.lineWidth=0.45;ctx.stroke();
+        ctx.strokeStyle=`hsla(${rh},58%,82%,${la+d*0.18})`;ctx.lineWidth=0.6;ctx.stroke();
       }
       for(let p2=0;p2<ppr;p2+=2){
         const t2=(p2/ppr)*Math.PI*2;ctx.beginPath();let f2=true;
@@ -198,9 +221,9 @@ function useSoulCanvas(ref,alphaRef,modeRef,sTRef){
         const p3=rot(sp.phi,sp.theta,ry,rx,R),d2=(p3.z+R)/(2*R),bl=0.2+0.8*((Math.sin(sp.bp)+1)/2),a2=d2*bl*0.8;
         if(a2<0.02)return;
         const dx=cx+p3.x,dy=cy-p3.y,dh=mode==="galaxy"?(h1+sp.phi*55+sp.theta*12)%360:(255+sp.phi*42+sp.theta*7)%360,sz=sp.sz*dm;
-        const dg=ctx.createRadialGradient(dx,dy,0,dx,dy,sz*4);dg.addColorStop(0,`hsla(${dh},65%,82%,${a2*0.4})`);dg.addColorStop(1,"rgba(3,1,12,0)");
-        ctx.beginPath();ctx.arc(dx,dy,sz*4,0,Math.PI*2);ctx.fillStyle=dg;ctx.fill();
-        ctx.beginPath();ctx.arc(dx,dy,sz*Math.max(0.25,d2),0,Math.PI*2);ctx.fillStyle=`hsla(${dh},70%,88%,${a2})`;ctx.fill();
+        const dg=ctx.createRadialGradient(dx,dy,0,dx,dy,sz*7);dg.addColorStop(0,`hsla(${dh},75%,90%,${a2*0.55})`);dg.addColorStop(0.5,`hsla(${dh},65%,75%,${a2*0.2})`);dg.addColorStop(1,"rgba(3,1,12,0)");
+        ctx.beginPath();ctx.arc(dx,dy,sz*7,0,Math.PI*2);ctx.fillStyle=dg;ctx.fill();
+        ctx.beginPath();ctx.arc(dx,dy,sz*Math.max(0.4,d2)*1.3,0,Math.PI*2);ctx.fillStyle=`hsla(${dh},80%,95%,${a2})`;ctx.fill();
       });
       ctx.restore();
     }
@@ -334,6 +357,7 @@ function App(){
   const [viewer,setViewer]=useState("");
   const [viewerFade,setViewerFade]=useState(false);
   const [spherePulse,setSpherePulse]=useState(false);
+
   useBgCanvas(bgRef);useSoulCanvas(soulRef,alphaRef,modeRef,sTRef);useFxCanvas(fxRef,fxState);
   const fadeSoul=useCallback((to,dur=700)=>new Promise(res=>{
     const from=alphaRef.current,t0=performance.now();
@@ -368,8 +392,8 @@ function App(){
         setMsgVisible(true);setDivVisible(false);setReplyText("");setThinking(false);
         return fixTypos(item.text).then(clean=>typewrite(setUnsentText,clean||item.text,40));
       })
-      .then(()=>wait(550))
-      .then(()=>{setDivVisible(true);return wait(700);})
+      .then(()=>wait(300))
+      .then(()=>{setDivVisible(true);return wait(400);})
       .then(()=>{setThinking(true);const fb=getFallback(recentRef.current);return genReply(item.text).then(r=>{recentRef.current=[...recentRef.current.slice(-5),r];return r;}).catch(()=>fb);})
       .then(reply=>{setThinking(false);if(!reply||typeof reply!=="string")reply=getFallback(recentRef.current);return typewrite(setReplyText,reply,50);})
       .then(()=>wait(hold))
@@ -392,6 +416,8 @@ function App(){
     if(!playing.current)next();
   },[next]);
   useEffect(()=>{startNudge();return stopNudge;},[startNudge,stopNudge]);
+
+
   useEffect(()=>{
     const timer=setInterval(()=>{setTitleVis(false);setTimeout(()=>{setTitleIdx(p=>(p+1)%2);setTitleVis(true);},800);},12000);
     return()=>clearInterval(timer);
@@ -418,7 +444,9 @@ function App(){
           const gifted=pg&&(Date.now()-pg.ts)<30000;
           const level=gifted?pg.tier:"none";
           if(gifted)delete pendingGifts.current[d.user];
-          enqueue(d.text,gifted,level,d.displayName||d.user||"");
+          // Filter: min 4 words, not pure emoji/spam
+          const words=(d.text||"").trim().split(/\s+/).filter(w=>w.length>0);
+          if(words.length>=4) enqueue(d.text,gifted,level,d.displayName||d.user||"");
         }else if(d.type==="gift"){
           pendingGifts.current[d.user]={tier:d.tier,ts:Date.now()};
         }
@@ -457,11 +485,12 @@ function App(){
           {LIVE_TITLES[titleIdx]}
           <br/>
           <span style={{fontSize:"clamp(13px,2.8vmin,24px)",fontWeight:200,letterSpacing:"0.06em",color:"rgba(218,108,130,0.8)"}}>{LIVE_SUBTITLES[titleIdx]}</span>
-          <span style={{display:"inline-block",color:"rgb(218,108,130)",marginLeft:8,verticalAlign:"middle",filter:"drop-shadow(0 0 7px rgba(218,108,130,.75))",animation:"hb 2s ease-in-out infinite"}}>&hearts;</span>
+
         </div>
         <div style={{position:"absolute",bottom:"6%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(11px,2vmin,15px)",fontWeight:300,letterSpacing:"0.18em",textTransform:"uppercase",color:"rgba(246,238,255,.18)",whiteSpace:"nowrap"}}>
-          type any &hearts; emoji + your question
+          type your question in the chat below
         </div>
+
         <div style={{position:"absolute",bottom:"12%",left:"50%",transform:"translateX(-50%)",fontSize:"clamp(10px,1.8vmin,13px)",letterSpacing:"0.16em",textTransform:"uppercase",whiteSpace:"nowrap",transition:"opacity 1.2s ease",opacity:nudgeOn?0.42:0,color:"rgba(220,185,100,1)"}}>
           &diams; {nudgeText}
         </div>
