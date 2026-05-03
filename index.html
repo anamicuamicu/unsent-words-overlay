@@ -50,24 +50,22 @@ function getFallback(recent){
   const p=pool.length>0?pool:FALLBACK;
   return p[Math.floor(Math.random()*p.length)];
 }
+const BRIDGE_API="https://unsent-words-bridge.onrender.com";
 function genReply(msg){
-  const sys="You are a calm, wise, deeply caring presence answering questions people are afraid to ask out loud. Someone is asking something they have carried for a long time. Rules: Always directly answer the question being asked. Your answer must clearly relate to the intent of the question. Keep answers to 1 to 2 sentences max. Tone: calm, wise, slightly poetic but still clear and understandable. Speak as if you are reassuring or gently guiding the person. Make the answer feel powerful and quotable. Examples: Q: Am I enough? A: You have always been enough, even in the moments when you doubted it most. Q: Will I succeed? A: Yes, if you keep going, your effort will shape the outcome you are hoping for. Q: Why do I feel lost? A: You are in a transition not a failure, this feeling is part of finding your direction. Q: where are you now? A: I am closer than you think, in the quiet moments when you feel something you cannot name. Q: do you miss me? A: Every single day, more than words have ever been able to hold. Return only the reply. No quotes, no labels, no extra text.";
-  return fetch("https://api.anthropic.com/v1/messages",{
+  return fetch(BRIDGE_API+"/reply",{
     method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:80,system:sys,messages:[{role:"user",content:msg}]})
+    body:JSON.stringify({message:msg})
   }).then(r=>r.json()).then(d=>{
-    if(d.content&&d.content[0]&&d.content[0].text)return d.content[0].text.trim().replace(/^["']|["']$/g,"");
+    if(d.reply)return d.reply;
     throw new Error("empty");
   });
 }
 function fixTypos(text){
-  return fetch("https://api.anthropic.com/v1/messages",{
+  return fetch(BRIDGE_API+"/fixtypos",{
     method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:60,
-      system:"Fix spelling mistakes and typos only. Keep the exact meaning and words. Return only the corrected text, no explanation.",
-      messages:[{role:"user",content:text}]})
+    body:JSON.stringify({text:text})
   }).then(r=>r.json()).then(d=>{
-    if(d.content&&d.content[0]&&d.content[0].text)return d.content[0].text.trim();
+    if(d.result)return d.result;
     return text;
   }).catch(()=>text);
 }
