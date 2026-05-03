@@ -445,8 +445,7 @@ function App(){
           const level=gifted?pg.tier:"none";
           if(gifted)delete pendingGifts.current[d.user];
           // Filter: min 4 words, not pure emoji/spam
-          const words=(d.text||"").trim().split(/\s+/).filter(w=>w.length>0);
-          if(words.length>=4) enqueue(d.text,gifted,level,d.displayName||d.user||"");
+          enqueue(d.text,gifted,level,d.displayName||d.user||"");
         }else if(d.type==="gift"){
           pendingGifts.current[d.user]={tier:d.tier,ts:Date.now()};
         }
